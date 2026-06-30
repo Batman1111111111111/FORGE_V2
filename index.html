@@ -167,6 +167,8 @@
           Import
           <input id="importInput" type="file" accept="application/json" hidden />
         </label>
+        <!-- The ⏭ button already has an onclick handler in HTML; no extra JS needed -->
+        <button class="icon-btn" onclick="advanceWeek()" title="Advance week">⏭</button>
       </div>
     </header>
 
@@ -438,7 +440,6 @@
     };
 
     function getPhaseNumber() {
-      // Weeks 1-4: foundation, 5-8: strength, 9+: peak (indefinitely)
       if (state.week <= 4) return 1;
       if (state.week <= 8) return 2;
       return 3;
@@ -674,7 +675,6 @@
       const program = PROGRAMS[state.program];
       const phase = program[phaseNum];
 
-      // Week grid (dynamic, shows up to current week + 4)
       const maxVisibleWeek = Math.max(state.week + 4, 12);
       let gridHtml = '';
       for (let w = 1; w <= maxVisibleWeek; w++) {
@@ -684,7 +684,6 @@
       }
       document.getElementById('weekGrid').innerHTML = gridHtml;
 
-      // Weekly structure
       let structureHtml = `<div class="muted">${program.label} — ${phase.phase} phase</div>`;
       DAYS.forEach(day => {
         const d = phase.days?.[day];
@@ -816,7 +815,7 @@
       await renderAll();
     }
 
-    // Advance week (no cap)
+    // Advance week (no cap) – called from header button onclick
     function advanceWeek() {
       state.week++;
       saveState();
@@ -834,52 +833,61 @@
     // ========== EVENT BINDING ==========
     function bindAll() {
       log('Binding events...');
+
+      // Helper to safely add event listener
+      function safeAdd(id, event, handler) {
+        const el = document.getElementById(id);
+        if (!el) {
+          log('⚠️ Element not found: #' + id);
+          return;
+        }
+        el.addEventListener(event, handler);
+      }
+
       document.querySelectorAll('.tab').forEach(btn => btn.addEventListener('click', () => showPage(btn.dataset.page)));
 
-      document.getElementById('startWorkoutBtn').addEventListener('click', () => { state.tempSession = buildSessionDraft(); renderSessionEditor(); showPage('log'); });
-      document.getElementById('quickCompleteBtn').addEventListener('click', async () => {
+      safeAdd('startWorkoutBtn', 'click', () => { state.tempSession = buildSessionDraft(); renderSessionEditor(); showPage('log'); });
+      safeAdd('quickCompleteBtn', 'click', async () => {
         const d = buildSessionDraft(); d.completed = true;
         await put('sessions', d);
         state.completedWorkouts.push({ id:d.id, date:d.date, day:d.day, week:d.week });
         await saveState(); await renderAll();
       });
-      document.getElementById('prevDayBtn').addEventListener('click', () => { state.dayOffset--; saveState(); renderAll(); });
-      document.getElementById('nextDayBtn').addEventListener('click', () => { state.dayOffset++; saveState(); renderAll(); });
-      document.getElementById('todayBtn').addEventListener('click', () => { state.dayOffset = 0; saveState(); renderAll(); });
+      safeAdd('prevDayBtn', 'click', () => { state.dayOffset--; saveState(); renderAll(); });
+      safeAdd('nextDayBtn', 'click', () => { state.dayOffset++; saveState(); renderAll(); });
+      safeAdd('todayBtn', 'click', () => { state.dayOffset = 0; saveState(); renderAll(); });
 
       document.querySelectorAll('[data-water]').forEach(b => b.addEventListener('click', () => addWater(+b.dataset.water)));
-      document.getElementById('addCustomWaterBtn').addEventListener('click', () => {
+      safeAdd('addCustomWaterBtn', 'click', () => {
         const amt = +document.getElementById('customWater').value || 0;
         if (amt) addWater(amt);
       });
 
       const setupTimer = (displayId, customId, startId, stopId) => {
         const display = document.getElementById(displayId);
+        if (!display) return;
         document.querySelectorAll('[data-timer]').forEach(b => b.addEventListener('click', () => startTimer(+b.dataset.timer, display)));
-        document.getElementById(startId).addEventListener('click', () => {
+        safeAdd(startId, 'click', () => {
           const sec = +document.getElementById(customId).value || 0;
           if (sec) startTimer(sec, display);
         });
-        document.getElementById(stopId).addEventListener('click', stopTimer);
+        safeAdd(stopId, 'click', stopTimer);
       };
       setupTimer('timerDisplay', 'customTimerSec', 'startCustomTimerBtn', 'stopTimerBtn');
       setupTimer('timerDisplay2', 'customTimerSec2', 'startCustomTimerBtn2', 'stopTimerBtn2');
 
-      document.getElementById('saveSessionBtn').addEventListener('click', saveSession);
-      document.getElementById('logWeightBtn').addEventListener('click', logWeight);
-      document.getElementById('exportBtn').addEventListener('click', exportData);
-      document.getElementById('importInput').addEventListener('change', importData);
-      document.getElementById('saveSettingsBtn').addEventListener('click', saveSettings);
-
-      // Advance week button in header
-      document.querySelector('.icon-btn[title="Advance week"]').addEventListener('click', advanceWeek);
+      safeAdd('saveSessionBtn', 'click', saveSession);
+      safeAdd('logWeightBtn', 'click', logWeight);
+      safeAdd('exportBtn', 'click', exportData);
+      safeAdd('importInput', 'change', importData);
+      safeAdd('saveSettingsBtn', 'click', saveSettings);
 
       log('Events bound');
     }
 
     // ========== PWA ==========
     if ('serviceWorker' in navigator) {
-      const swCode = `const CACHE='forge-infinite-v1';self.addEventListener('install',e=>{e.waitUntil(caches.open(CACHE).then(c=>c.addAll(['./'])).then(()=>self.skipWaiting()))});self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(k=>Promise.all(k.map(k=>k!==CACHE?caches.delete(k):null))).then(()=>self.clients.claim()))});self.addEventListener('fetch',e=>{if(e.request.method!=='GET')return;e.respondWith(caches.match(e.request).then(c=>c||fetch(e.request).then(r=>{if(r.ok){const clone=r.clone();caches.open(CACHE).then(c=>c.put(e.request,clone));}return r;}).catch(()=>caches.match('./index.html'))))});`;
+      const swCode = `const CACHE='forge-infinite-v2';self.addEventListener('install',e=>{e.waitUntil(caches.open(CACHE).then(c=>c.addAll(['./'])).then(()=>self.skipWaiting()))});self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(k=>Promise.all(k.map(k=>k!==CACHE?caches.delete(k):null))).then(()=>self.clients.claim()))});self.addEventListener('fetch',e=>{if(e.request.method!=='GET')return;e.respondWith(caches.match(e.request).then(c=>c||fetch(e.request).then(r=>{if(r.ok){const clone=r.clone();caches.open(CACHE).then(c=>c.put(e.request,clone));}return r;}).catch(()=>caches.match('./index.html'))))});`;
       const blob = new Blob([swCode], {type:'application/javascript'});
       navigator.serviceWorker.register(URL.createObjectURL(blob)).catch(() => {});
     }

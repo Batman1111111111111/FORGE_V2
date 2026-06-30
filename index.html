@@ -129,6 +129,7 @@
       </div>
       <div class="top-actions">
         <span class="badge" id="prBadge" style="display:none">🏆 New PR!</span>
+        <button class="icon-btn" id="advanceWeekBtn" title="Advance week">⏭</button>
         <button class="icon-btn" id="exportBtn">Export</button>
         <label class="icon-btn file-btn">
           Import
@@ -152,7 +153,6 @@
         <button onclick="document.getElementById('debugOutput').textContent=''" class="secondary">Clear</button>
       </div>
 
-      <!-- TODAY PAGE -->
       <section class="page active" id="page-today">
         <div class="card hero">
           <div class="day-nav">
@@ -194,7 +194,6 @@
         </div>
       </section>
 
-      <!-- LOG PAGE -->
       <section class="page" id="page-log">
         <div class="card">
           <h2>Workout logger</h2>
@@ -220,7 +219,6 @@
         </div>
       </section>
 
-      <!-- PROGRESS PAGE -->
       <section class="page" id="page-progress">
         <div class="card"><h2>Progress overview</h2><div class="stats" id="progressStats"></div></div>
         <div class="card"><h2>Bodyweight chart</h2><canvas id="weightChartCanvas" height="200"></canvas></div>
@@ -236,12 +234,10 @@
         <div class="card"><h2>Exercise history</h2><div id="exerciseHistory"></div></div>
       </section>
 
-      <!-- PROGRAM PAGE -->
       <section class="page" id="page-program">
         <div class="card"><h2>Your Roadmap</h2><div id="programView"></div></div>
       </section>
 
-      <!-- SETTINGS PAGE -->
       <section class="page" id="page-settings">
         <div class="card">
           <h2>Program</h2>
@@ -325,7 +321,7 @@
 
     log('DB ready');
 
-    // ========== PROGRAMS (unending – phases 1,2,3; after week 12 stays in phase 3) ==========
+    // ========== PROGRAMS (unending) ==========
     const PROGRAMS = {
       calisthenics: {
         label: 'Calisthenics',
@@ -396,7 +392,6 @@
     function escapeHtml(s) { return String(s).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
     function escapeAttr(s) { return escapeHtml(s).replace(/"/g,'&quot;'); }
 
-    // ========== STATE ==========
     let state = {
       program: 'calisthenics',
       week: 1,
@@ -409,7 +404,7 @@
     function getPhaseNumber() {
       if (state.week <= 4) return 1;
       if (state.week <= 8) return 2;
-      return 3; // week 9 and beyond stays in phase 3
+      return 3;
     }
     function getPhaseName() { return PROGRAMS[state.program][getPhaseNumber()].phase; }
     function getCurrentDayName() {
@@ -451,7 +446,6 @@
       };
     }
 
-    // ========== RENDER ==========
     async function renderAll() {
       updateProgramBadge();
       await renderToday();
@@ -651,7 +645,6 @@
       document.getElementById('goalWeightInput').value = state.settings.goalWeight;
     }
 
-    // ========== TIMER (background-proof) ==========
     let timerInterval = null, timerEndTime = null, timerDisplayEl = null;
 
     function requestNotificationPermission() {
@@ -691,7 +684,6 @@
       }
     });
 
-    // ========== ACTIONS ==========
     async function addWater(amt) {
       const item = await get('notes','today-water');
       await put('notes', { id:'today-water', value: (item?.value||0)+amt });
@@ -769,7 +761,6 @@
       if (page === 'progress') renderProgress();
     }
 
-    // ========== EVENT BINDING ==========
     function bindAll() {
       log('Binding events...');
       document.querySelectorAll('.tab').forEach(btn => btn.addEventListener('click', () => showPage(btn.dataset.page)));
@@ -808,9 +799,7 @@
       document.getElementById('exportBtn').addEventListener('click', exportData);
       document.getElementById('importInput').addEventListener('change', importData);
       document.getElementById('saveSettingsBtn').addEventListener('click', saveSettings);
-
-      // Advance week button in header
-      document.querySelector('.icon-btn[title="Advance week"]').addEventListener('click', () => {
+      document.getElementById('advanceWeekBtn').addEventListener('click', () => {
         state.week++;
         saveState();
         renderAll();
@@ -819,14 +808,12 @@
       log('Events bound');
     }
 
-    // ========== PWA ==========
     if ('serviceWorker' in navigator) {
       const swCode = `const CACHE='forge-unending';self.addEventListener('install',e=>{e.waitUntil(caches.open(CACHE).then(c=>c.addAll(['./'])).then(()=>self.skipWaiting()))});self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(k=>Promise.all(k.map(k=>k!==CACHE?caches.delete(k):null))).then(()=>self.clients.claim()))});self.addEventListener('fetch',e=>{if(e.request.method!=='GET')return;e.respondWith(caches.match(e.request).then(c=>c||fetch(e.request).then(r=>{if(r.ok){const clone=r.clone();caches.open(CACHE).then(c=>c.put(e.request,clone));}return r;}).catch(()=>caches.match('./index.html'))))});`;
       const blob = new Blob([swCode], {type:'application/javascript'});
       navigator.serviceWorker.register(URL.createObjectURL(blob)).catch(() => {});
     }
 
-    // ========== INIT ==========
     (async () => {
       log('Init started');
       await loadState();

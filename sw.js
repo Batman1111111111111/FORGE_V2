@@ -1,10 +1,9 @@
-const CACHE_NAME = 'forge-shell-v2';
+const CACHE_NAME = 'forge-shell-v3';
 const APP_SHELL = [
   './',
   './index.html',
   './styles.css',
   './app.js',
-  './db.js',
   './manifest.json',
   'https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js'
 ];

@@ -128,7 +128,7 @@
     </nav>
 
     <main>
-      <!-- Debug panel (remove after testing) -->
+      <!-- Debug panel (removed after 3s) -->
       <div class="debug-panel" id="debugPanel">
         <h2>🐛 Debug</h2>
         <pre id="debugOutput">Loading...</pre>
@@ -215,21 +215,33 @@
           <h2>Progress overview</h2>
           <div class="stats" id="progressStats"></div>
         </div>
+
         <div class="card">
           <h2>Bodyweight chart</h2>
           <canvas id="weightChartCanvas" height="200"></canvas>
         </div>
+
+        <!-- NEW WEIGHT LOGGING CARD -->
+        <div class="card">
+          <h2>Log weight</h2>
+          <div class="row" style="gap:10px; align-items:center;">
+            <input type="number" id="weightInput" placeholder="Weight (kg)" step="0.1" style="flex:1;" />
+            <button id="logWeightBtn" class="primary">Log weight</button>
+          </div>
+          <div style="margin-top:12px;">
+            <div class="subtle">Recent entries:</div>
+            <div id="weightList" style="margin-top:6px;"></div>
+          </div>
+        </div>
+
         <div class="card">
           <h2>Personal records</h2>
           <div id="prList"></div>
         </div>
+
         <div class="card">
           <h2>Exercise history</h2>
           <div id="exerciseHistory"></div>
-        </div>
-        <div class="card">
-          <h2>Weight log</h2>
-          <div id="weightList"></div>
         </div>
       </section>
 
@@ -279,7 +291,7 @@
         req.onupgradeneeded = () => {
           const db = req.result;
           ['settings','sessions','weights','nutrition','notes'].forEach(store => {
-            if (!db.objectStoreNames.contains(store)) db.createObjectStore(store, { keyPath: 'id' || 'key' });
+            if (!db.objectStoreNames.contains(store)) db.createObjectStore(store, { keyPath: 'id' });
           });
         };
         req.onsuccess = () => resolve(req.result);
@@ -499,9 +511,10 @@
         <div class="history-item"><div><div class="exercise-name">${escapeHtml(s.title)}</div><div class="muted">${s.date} · ${s.day} · Week ${s.week}</div></div></div>
       `).join('') || '<div class="muted">No sessions yet.</div>';
 
-      document.getElementById('weightList').innerHTML = weights.slice(-10).reverse().map(w => `
+      // Weight list (recent 10)
+      document.getElementById('weightList').innerHTML = weights.slice(-5).reverse().map(w => `
         <div class="weight-item"><div>${w.date}</div><div><strong>${w.value}</strong> kg</div></div>
-      `).join('') || '<div class="muted">No weigh-ins.</div>';
+      `).join('') || '<div class="muted">No weigh-ins yet.</div>';
 
       drawWeightChart(weights);
     }
@@ -605,6 +618,15 @@
       setTimeout(() => document.getElementById('prBadge').style.display = 'none', 3000);
     }
 
+    async function logWeight() {
+      const input = document.getElementById('weightInput');
+      const val = parseFloat(input.value);
+      if (!val || val < 30 || val > 200) return;
+      await put('weights', { id: uid('w'), date: todayStr(), value: val });
+      input.value = '';
+      await renderProgress();
+    }
+
     async function exportData() {
       const data = {
         settings: await getAll('settings'),
@@ -689,6 +711,7 @@
       setupTimer('timerDisplay2', 'customTimerSec2', 'startCustomTimerBtn2', 'stopTimerBtn2');
 
       document.getElementById('saveSessionBtn').addEventListener('click', saveSession);
+      document.getElementById('logWeightBtn').addEventListener('click', logWeight);
       document.getElementById('exportBtn').addEventListener('click', exportData);
       document.getElementById('importInput').addEventListener('change', importData);
       document.getElementById('saveSettingsBtn').addEventListener('click', saveSettings);
@@ -698,7 +721,7 @@
 
     // ========== PWA ==========
     if ('serviceWorker' in navigator) {
-      const swCode = `const CACHE='forge-final-v1';self.addEventListener('install',e=>{e.waitUntil(caches.open(CACHE).then(c=>c.addAll(['./'])).then(()=>self.skipWaiting()))});self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(k=>Promise.all(k.map(k=>k!==CACHE?caches.delete(k):null))).then(()=>self.clients.claim()))});self.addEventListener('fetch',e=>{if(e.request.method!=='GET')return;e.respondWith(caches.match(e.request).then(c=>c||fetch(e.request).then(r=>{if(r.ok){const clone=r.clone();caches.open(CACHE).then(c=>c.put(e.request,clone));}return r;}).catch(()=>caches.match('./index.html'))))});`;
+      const swCode = `const CACHE='forge-final-v2';self.addEventListener('install',e=>{e.waitUntil(caches.open(CACHE).then(c=>c.addAll(['./'])).then(()=>self.skipWaiting()))});self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(k=>Promise.all(k.map(k=>k!==CACHE?caches.delete(k):null))).then(()=>self.clients.claim()))});self.addEventListener('fetch',e=>{if(e.request.method!=='GET')return;e.respondWith(caches.match(e.request).then(c=>c||fetch(e.request).then(r=>{if(r.ok){const clone=r.clone();caches.open(CACHE).then(c=>c.put(e.request,clone));}return r;}).catch(()=>caches.match('./index.html'))))});`;
       const blob = new Blob([swCode], {type:'application/javascript'});
       navigator.serviceWorker.register(URL.createObjectURL(blob)).catch(() => {});
     }
@@ -710,7 +733,6 @@
       await renderAll();
       bindAll();
       log('✅ App fully loaded');
-      // Remove debug panel after 3 seconds
       setTimeout(() => {
         const panel = document.getElementById('debugPanel');
         if (panel) panel.style.display = 'none';

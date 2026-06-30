@@ -126,6 +126,11 @@
     .day-nav { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; flex-wrap: wrap; }
     .day-nav button { background: var(--surface); border: 1px solid var(--border); color: var(--text); border-radius: 8px; padding: 10px 14px; min-height: 44px; }
 
+    .program-badge {
+      background: var(--accent); color: white; padding: 4px 10px; border-radius: 20px;
+      font-size: 0.7rem; font-weight: 700; text-transform: uppercase; margin-left: 8px;
+    }
+
     .debug-panel { background: #1a0000; border: 1px solid red; padding: 10px; border-radius: 12px; margin-bottom: 14px; font-size: 0.75rem; }
     .debug-panel pre { color: #ff4444; white-space: pre-wrap; max-height: 120px; overflow: auto; }
 
@@ -144,7 +149,7 @@
   <div id="app">
     <header class="topbar">
       <div>
-        <div class="brand">FORGE</div>
+        <div class="brand">FORGE <span class="program-badge" id="programBadge">CALISTHENICS</span></div>
         <div class="subtle" id="statusText">Offline‑first fitness tracker</div>
       </div>
       <div class="top-actions">
@@ -264,23 +269,23 @@
       <!-- SETTINGS PAGE -->
       <section class="page" id="page-settings">
         <div class="card">
-          <h2>Settings</h2>
-          <label class="setting"><span>Start week</span><input id="startWeekInput" type="number" min="1" max="12" /></label>
-          <label class="setting"><span>Bodyweight goal</span><input id="goalWeightInput" type="number" step="0.1" /></label>
-          <button id="saveSettingsBtn" class="primary">Save settings</button>
-        </div>
-
-        <!-- PROGRAMME SELECTOR -->
-        <div class="card">
-          <h2>Programme</h2>
+          <h2>Program</h2>
           <label class="setting">
-            <span>Training type</span>
-            <select id="programTypeSelect">
-              <option value="calisthenics">Calisthenics</option>
-              <option value="gym">Gym</option>
+            <span>Training program</span>
+            <select id="programSelect">
+              <option value="calisthenics">Calisthenics (Bodyweight)</option>
+              <option value="gym">Gym (Hybrid Athlete)</option>
             </select>
           </label>
-          <button id="saveProgramTypeBtn" class="primary">Save programme</button>
+          <label class="setting">
+            <span>Start week</span>
+            <input id="startWeekInput" type="number" min="1" max="12" />
+          </label>
+          <label class="setting">
+            <span>Bodyweight goal</span>
+            <input id="goalWeightInput" type="number" step="0.1" />
+          </label>
+          <button id="saveSettingsBtn" class="primary">Save settings</button>
         </div>
       </section>
     </main>
@@ -297,7 +302,7 @@
     log('Script started');
 
     // ========== IndexedDB ==========
-    const DB_NAME = 'forge-db-final';
+    const DB_NAME = 'forge-db-dual';
     let dbPromise;
     function openDB() {
       if (dbPromise) return dbPromise;
@@ -345,116 +350,95 @@
 
     log('DB ready');
 
-    // ========== PROGRAMME DATA ==========
-    const PROGRAM = {
-      1: { phase:'Foundation', days: {
-        Monday: { title:'Upper Strength', sub:'Compound pull & push.', exercises:[{n:'Pull-ups',s:5,r:'5'},{n:'Push-ups',s:5,r:'15'},{n:'Dips',s:4,r:'8-12'},{n:'Pike push-ups',s:4,r:'10'},{n:'Australian rows',s:4,r:'12'}] },
-        Tuesday: { title:'Lower Strength', sub:'Legs are the engine.', exercises:[{n:'Squats',s:5,r:'20'},{n:'Bulgarian split squats',s:4,r:'12/leg'},{n:'Walking lunges',s:3,r:'20/leg'},{n:'Glute bridges',s:4,r:'20'},{n:'Calf raises',s:4,r:'25'}] },
-        Wednesday: { title:'Conditioning', sub:'Run + circuits.', notes:['Run 30–40 min','3 rounds: 20 push‑ups, 20 squats, 10 pull‑ups, 20 mountain climbers'] },
-        Thursday: { title:'Explosive Power', sub:'Plyometrics & sprints.', exercises:[{n:'Box jumps',s:5,r:'5'},{n:'Jump squats',s:4,r:'10'},{n:'Broad jumps',s:4,r:'8'},{n:'Explosive push-ups',s:5,r:'8'},{n:'Clapping push-ups',s:4,r:'6'}] },
-        Friday: { title:'Upper Hypertrophy', sub:'Volume day.', exercises:[{n:'Pull-ups',s:4,r:'8'},{n:'Chin-ups',s:4,r:'8'},{n:'Dips',s:4,r:'12'},{n:'Push-ups',s:4,r:'20'},{n:'Pike push-ups',s:4,r:'12'}] },
-        Saturday: { title:'Legs + Stamina', sub:'Run & leg circuit.', notes:['20 min run','Squats 4×25','Jump lunges 3×15'] },
-        Sunday: { title:'Recovery', sub:'Mobility & light movement.', notes:['Walk 20–30 min','Stretch hips, hamstrings, lats'] }
-      }},
-      2: { phase:'Build', days: {} },
-      3: { phase:'Peak', days: {} }
-    };
+    // ========== PROGRAMS ==========
+    const PROGRAMS = {
+      calisthenics: {
+        label: 'Calisthenics',
+        1: { phase:'Foundation', days: {
+          Monday: { title:'Upper Strength', sub:'Compound pull & push.', exercises:[{n:'Pull-ups',s:5,r:'5'},{n:'Push-ups',s:5,r:'15'},{n:'Dips',s:4,r:'8-12'},{n:'Pike push-ups',s:4,r:'10'},{n:'Australian rows',s:4,r:'12'}] },
+          Tuesday: { title:'Lower Strength', sub:'Legs are the engine.', exercises:[{n:'Squats',s:5,r:'20'},{n:'Bulgarian split squats',s:4,r:'12/leg'},{n:'Walking lunges',s:3,r:'20/leg'},{n:'Glute bridges',s:4,r:'20'},{n:'Calf raises',s:4,r:'25'}] },
+          Wednesday: { title:'Conditioning', sub:'Run + circuits.', notes:['Run 30–40 min','3 rounds: 20 push‑ups, 20 squats, 10 pull‑ups, 20 mountain climbers'] },
+          Thursday: { title:'Explosive Power', sub:'Plyometrics & sprints.', exercises:[{n:'Box jumps',s:5,r:'5'},{n:'Jump squats',s:4,r:'10'},{n:'Broad jumps',s:4,r:'8'},{n:'Explosive push-ups',s:5,r:'8'},{n:'Clapping push-ups',s:4,r:'6'}] },
+          Friday: { title:'Upper Hypertrophy', sub:'Volume day.', exercises:[{n:'Pull-ups',s:4,r:'8'},{n:'Chin-ups',s:4,r:'8'},{n:'Dips',s:4,r:'12'},{n:'Push-ups',s:4,r:'20'},{n:'Pike push-ups',s:4,r:'12'}] },
+          Saturday: { title:'Legs + Stamina', sub:'Run & leg circuit.', notes:['20 min run','Squats 4×25','Jump lunges 3×15'] },
+          Sunday: { title:'Recovery', sub:'Mobility & light movement.', notes:['Walk 20–30 min','Stretch hips, hamstrings, lats'] }
+        }},
+        2: { phase:'Build', days: {} },
+        3: { phase:'Peak', days: {} }
+      },
 
-    const GYM_PROGRAM = {
-      1: { phase:'Foundation', days: {
-        Monday: { title:'Upper Body Push', sub:'Barbell & dumbbell press focus', exercises:[
-          {n:'Barbell bench press',s:5,r:'5'},{n:'Dumbbell shoulder press',s:4,r:'8-10'},{n:'Incline dumbbell press',s:4,r:'10'},{n:'Cable flyes',s:3,r:'12-15'},{n:'Tricep pushdowns',s:3,r:'12-15'}
-        ]},
-        Tuesday: { title:'Lower Body', sub:'Squat & deadlift foundation', exercises:[
-          {n:'Barbell back squat',s:5,r:'5'},{n:'Romanian deadlift',s:4,r:'8-10'},{n:'Walking lunges (dumbbell)',s:3,r:'10/leg'},{n:'Leg press',s:4,r:'12'},{n:'Calf raises (smith machine)',s:4,r:'15-20'}
-        ]},
-        Wednesday: { title:'Conditioning', sub:'30 min steady‑state cardio', notes:['Treadmill or bike 30‑40 min','Core circuit: 3×30 sec plank, 3×15 leg raises, 3×15 Russian twists'] },
-        Thursday: { title:'Upper Body Pull', sub:'Back & biceps hypertrophy', exercises:[
-          {n:'Barbell rows',s:5,r:'5'},{n:'Lat pulldowns',s:4,r:'10-12'},{n:'Seated cable rows',s:4,r:'10-12'},{n:'Face pulls',s:3,r:'15'},{n:'Dumbbell curls',s:3,r:'12-15'}
-        ]},
-        Friday: { title:'Lower Body Power', sub:'Explosive & accessory work', exercises:[
-          {n:'Deadlifts',s:5,r:'5'},{n:'Bulgarian split squats (dumbbell)',s:4,r:'10/leg'},{n:'Kettlebell swings',s:4,r:'15'},{n:'Hamstring curls',s:3,r:'12-15'},{n:'Calf raises (seated)',s:4,r:'15-20'}
-        ]},
-        Saturday: { title:'Arms & Conditioning', sub:'Arm day + HIIT', exercises:[
-          {n:'Close‑grip bench press',s:4,r:'10'},{n:'Skull crushers',s:3,r:'12'},{n:'Barbell curls',s:4,r:'10'},{n:'Hammer curls',s:3,r:'12'}
-        ], notes:['Finish with 15 min HIIT: 30s sprint / 30s rest on bike or rower']},
-        Sunday: { title:'Recovery', sub:'Mobility & stretching', notes:['Walk 20‑30 min','Foam roll and stretch'] }
-      }},
-      2: { phase:'Build', days: {
-        Monday: { title:'Upper Body Push', sub:'Increase intensity', exercises:[
-          {n:'Barbell bench press',s:5,r:'6-8'},{n:'Dumbbell shoulder press',s:4,r:'8-10'},{n:'Incline dumbbell press',s:4,r:'10'},{n:'Lateral raises',s:4,r:'12-15'},{n:'Overhead tricep extensions',s:3,r:'12-15'}
-        ]},
-        Tuesday: { title:'Lower Body', sub:'Strength & hypertrophy', exercises:[
-          {n:'Barbell back squat',s:5,r:'6-8'},{n:'Romanian deadlift',s:4,r:'8-10'},{n:'Leg extensions',s:4,r:'12'},{n:'Leg curls',s:4,r:'12'},{n:'Calf raises (standing)',s:4,r:'15-20'}
-        ]},
-        Wednesday: { title:'Conditioning', sub:'Intervals or long run', notes:['Option A: 45‑60 min steady run','Option B: 10×100m sprints'] },
-        Thursday: { title:'Upper Body Pull', sub:'Progressive overload', exercises:[
-          {n:'Weighted pull‑ups',s:5,r:'5'},{n:'Barbell rows',s:4,r:'8-10'},{n:'Single‑arm dumbbell rows',s:4,r:'10/arm'},{n:'Reverse pec deck',s:3,r:'15'},{n:'Preacher curls',s:3,r:'12-15'}
-        ]},
-        Friday: { title:'Lower Body Power', sub:'Explosive & heavy', exercises:[
-          {n:'Deadlifts',s:5,r:'5'},{n:'Front squats',s:4,r:'8'},{n:'Box jumps (weighted if possible)',s:4,r:'8'},{n:'Glute bridges (barbell)',s:4,r:'12'},{n:'Calf raises (leg press)',s:4,r:'15-20'}
-        ]},
-        Saturday: { title:'Arms & Conditioning', sub:'Hypertrophy finisher', exercises:[
-          {n:'Dips (weighted)',s:4,r:'10'},{n:'Tricep pushdowns',s:3,r:'12-15'},{n:'Barbell curls',s:4,r:'10'},{n:'Concentration curls',s:3,r:'12'}
-        ], notes:['Finish with 20 min moderate cycling or rowing']},
-        Sunday: { title:'Recovery', sub:'Active rest', notes:['Walk 30 min','Full‑body stretch'] }
-      }},
-      3: { phase:'Peak', days: {
-        Monday: { title:'Upper Body Push', sub:'Strength focus', exercises:[
-          {n:'Barbell bench press',s:5,r:'3-5'},{n:'Overhead press (barbell)',s:5,r:'5'},{n:'Dumbbell flyes',s:3,r:'12'},{n:'Lateral raises',s:4,r:'12-15'},{n:'Dips (weighted)',s:4,r:'8-10'}
-        ]},
-        Tuesday: { title:'Lower Body', sub:'Heavy squat day', exercises:[
-          {n:'Barbell back squat',s:5,r:'3-5'},{n:'Deadlifts',s:5,r:'3-5'},{n:'Walking lunges (barbell)',s:3,r:'10/leg'},{n:'Leg press',s:4,r:'8-10'},{n:'Calf raises',s:4,r:'12-15'}
-        ]},
-        Wednesday: { title:'Conditioning', sub:'Metcon style', notes:['5 rounds: 10 pull‑ups, 15 push‑ups, 20 squats, 200m run (rest 1 min)'] },
-        Thursday: { title:'Upper Body Pull', sub:'Max strength', exercises:[
-          {n:'Weighted pull‑ups',s:5,r:'3-5'},{n:'Barbell rows',s:5,r:'5'},{n:'Lat pulldowns (heavy)',s:4,r:'6-8'},{n:'Face pulls',s:3,r:'15'},{n:'Barbell curls',s:4,r:'8-10'}
-        ]},
-        Friday: { title:'Lower Body Power', sub:'Explosive & accessory', exercises:[
-          {n:'Power cleans',s:5,r:'3'},{n:'Box jumps',s:5,r:'5'},{n:'Bulgarian split squats',s:4,r:'8/leg'},{n:'Hamstring curls',s:3,r:'12'},{n:'Calf raises',s:4,r:'12-15'}
-        ]},
-        Saturday: { title:'Arms & Conditioning', sub:'Arm hypertrophy', exercises:[
-          {n:'Close‑grip bench',s:4,r:'8-10'},{n:'Skull crushers',s:3,r:'12'},{n:'Barbell curls',s:4,r:'8-10'},{n:'Hammer curls',s:3,r:'12'}
-        ], notes:['Finish with 20 min interval rowing']},
-        Sunday: { title:'Recovery', sub:'Rest & stretch', notes:['Complete rest or gentle walk'] }
-      }}
+      gym: {
+        label: 'Gym',
+        1: { phase:'Foundation', days: {
+          Monday: { title:'Upper Strength', sub:'Heavy compounds.', exercises:[{n:'Bench Press',s:5,r:'5'},{n:'Weighted Pull-ups',s:5,r:'5'},{n:'Overhead Press',s:4,r:'5'},{n:'Barbell Row',s:4,r:'6'},{n:'Face Pulls',s:3,r:'15'},{n:'Hanging Leg Raises',s:3,r:'15'}], notes:['Farmer’s Carry 4×40 m'] },
+          Tuesday: { title:'Lower Strength', sub:'Squat & hinge.', exercises:[{n:'Back Squat',s:5,r:'5'},{n:'Romanian Deadlift',s:4,r:'6'},{n:'Bulgarian Split Squat',s:3,r:'8'},{n:'Standing Calf Raises',s:4,r:'15'},{n:'Ab Wheel',s:3,r:'12'}] },
+          Wednesday: { title:'Conditioning', sub:'Zone 2 run + circuits.', notes:['Run 30–45 min','4 rounds: Battle Rope 30s, Sled Push 20m, Burpees ×10, RowErg 250m'] },
+          Thursday: { title:'Power Day', sub:'Olympic lifts & plyos.', exercises:[{n:'Power Clean',s:5,r:'3'},{n:'Box Jump',s:5,r:'5'},{n:'Broad Jump',s:4,r:'5'},{n:'Med Ball Chest Throw',s:4,r:'8'},{n:'Plyometric Push-ups',s:4,r:'8'}], notes:['Sprints: 6–10 × 50 m'] },
+          Friday: { title:'Hypertrophy (Upper)', sub:'Volume for arms & shoulders.', exercises:[{n:'Incline Dumbbell Press',s:4,r:'10'},{n:'Lat Pulldown',s:4,r:'10'},{n:'Dumbbell Lateral Raise',s:4,r:'15'},{n:'Barbell Curl',s:3,r:'12'},{n:'Triceps Pushdown',s:3,r:'12'},{n:'Push-ups (to near failure)',s:1,r:'MAX'}] },
+          Saturday: { title:'Hypertrophy (Lower)', sub:'Leg volume.', exercises:[{n:'Front Squat',s:4,r:'10'},{n:'Leg Press',s:4,r:'12'},{n:'Walking Lunges',s:3,r:'20'},{n:'Leg Curl',s:3,r:'12'},{n:'Leg Extension',s:3,r:'15'},{n:'Standing Calf Raise',s:4,r:'20'}], notes:['20 min incline treadmill walk'] },
+          Sunday: { title:'Recovery', sub:'Mobility & rest.', notes:['Walk','Stretch','Foam rolling'] }
+        }},
+        2: { phase:'Strength', days: {
+          Monday: { title:'Upper Strength', sub:'Heavier, lower reps.', exercises:[{n:'Bench Press',s:5,r:'4'},{n:'Weighted Pull-ups',s:5,r:'4'},{n:'Overhead Press',s:4,r:'4'},{n:'Barbell Row',s:4,r:'5'},{n:'Face Pulls',s:3,r:'12'},{n:'Hanging Leg Raises',s:3,r:'12'}] },
+          Tuesday: { title:'Lower Strength', sub:'Increase load.', exercises:[{n:'Back Squat',s:5,r:'4'},{n:'Romanian Deadlift',s:4,r:'5'},{n:'Bulgarian Split Squat',s:3,r:'6'},{n:'Standing Calf Raises',s:4,r:'12'},{n:'Ab Wheel',s:3,r:'10'}] },
+          Wednesday: { title:'Conditioning', sub:'Longer intervals.', notes:['Run 40–50 min','4 rounds: Sled Push 30m, Battle Rope 40s, Box Jumps ×10, RowErg 300m'] },
+          Thursday: { title:'Power Day', sub:'Explosive focus.', exercises:[{n:'Power Clean',s:5,r:'3'},{n:'Box Jump',s:5,r:'6'},{n:'Broad Jump',s:4,r:'6'},{n:'Med Ball Chest Throw',s:4,r:'10'},{n:'Clapping Push-ups',s:4,r:'8'}], notes:['Sprints: 8–12 × 60 m'] },
+          Friday: { title:'Hypertrophy (Upper)', sub:'Still volume, moderate weight.', exercises:[{n:'Incline Dumbbell Press',s:4,r:'8-10'},{n:'Lat Pulldown',s:4,r:'8-10'},{n:'Dumbbell Lateral Raise',s:4,r:'12'},{n:'Barbell Curl',s:3,r:'10'},{n:'Triceps Pushdown',s:3,r:'10'},{n:'Push-ups (to near failure)',s:1,r:'MAX'}] },
+          Saturday: { title:'Hypertrophy (Lower)', sub:'Leg volume with heavier accessories.', exercises:[{n:'Front Squat',s:4,r:'8'},{n:'Leg Press',s:4,r:'10'},{n:'Walking Lunges',s:3,r:'16'},{n:'Leg Curl',s:3,r:'10'},{n:'Leg Extension',s:3,r:'12'},{n:'Standing Calf Raise',s:4,r:'18'}], notes:['25 min incline walk'] },
+          Sunday: { title:'Recovery', sub:'Mobility & rest.', notes:['Walk','Stretch','Foam rolling'] }
+        }},
+        3: { phase:'Peak', days: {
+          Monday: { title:'Upper Strength', sub:'Max strength.', exercises:[{n:'Bench Press',s:5,r:'3'},{n:'Weighted Pull-ups',s:5,r:'3'},{n:'Overhead Press',s:4,r:'3'},{n:'Barbell Row',s:4,r:'3'},{n:'Face Pulls',s:3,r:'10'},{n:'Hanging Leg Raises',s:3,r:'10'}] },
+          Tuesday: { title:'Lower Strength', sub:'Peak force.', exercises:[{n:'Back Squat',s:5,r:'3'},{n:'Romanian Deadlift',s:4,r:'3'},{n:'Bulgarian Split Squat',s:3,r:'5'},{n:'Standing Calf Raises',s:4,r:'10'},{n:'Ab Wheel',s:3,r:'8'}] },
+          Wednesday: { title:'Conditioning', sub:'High intensity intervals.', notes:['Run 35–45 min','5 rounds: Sled Push 20m, Battle Rope 30s, Burpees ×12, RowErg 200m'] },
+          Thursday: { title:'Power Day', sub:'Peak power.', exercises:[{n:'Power Clean',s:5,r:'2'},{n:'Box Jump',s:5,r:'5'},{n:'Broad Jump',s:4,r:'4'},{n:'Med Ball Chest Throw',s:4,r:'6'},{n:'Depth Push-ups',s:4,r:'6'}], notes:['Sprints: 6–8 × 40 m (max effort)'] },
+          Friday: { title:'Hypertrophy (Upper)', sub:'Maintenance volume.', exercises:[{n:'Incline Dumbbell Press',s:4,r:'10'},{n:'Lat Pulldown',s:4,r:'10'},{n:'Dumbbell Lateral Raise',s:4,r:'15'},{n:'Barbell Curl',s:3,r:'12'},{n:'Triceps Pushdown',s:3,r:'12'},{n:'Push-ups (to near failure)',s:1,r:'MAX'}] },
+          Saturday: { title:'Hypertrophy (Lower)', sub:'Maintenance leg volume.', exercises:[{n:'Front Squat',s:4,r:'10'},{n:'Leg Press',s:4,r:'12'},{n:'Walking Lunges',s:3,r:'20'},{n:'Leg Curl',s:3,r:'12'},{n:'Leg Extension',s:3,r:'15'},{n:'Standing Calf Raise',s:4,r:'20'}], notes:['20 min incline walk'] },
+          Sunday: { title:'Recovery', sub:'Mobility & rest.', notes:['Walk','Stretch','Foam rolling'] }
+        }}
+      }
     };
 
     const DAYS = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
+
     function todayStr() { return new Date().toISOString().slice(0,10); }
     function escapeHtml(s) { return String(s).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
     function escapeAttr(s) { return escapeHtml(s).replace(/"/g,'&quot;'); }
 
     // ========== STATE ==========
     let state = {
-      week: 1, dayOffset: 0,
-      settings: { goalWeight: 68, startWeek: 1, programType: 'calisthenics' },
+      program: 'calisthenics',
+      week: 1,
+      dayOffset: 0,
+      settings: { goalWeight: 68, startWeek: 1 },
       completedWorkouts: [],
       tempSession: null
     };
 
-    function getActiveProgram() {
-      return state.settings.programType === 'gym' ? GYM_PROGRAM : PROGRAM;
-    }
-
     function getPhaseNumber() { return state.week <= 4 ? 1 : state.week <= 8 ? 2 : 3; }
-    function getPhaseName() { return getActiveProgram()[getPhaseNumber()].phase; }
+    function getPhaseName() { return PROGRAMS[state.program][getPhaseNumber()].phase; }
     function getCurrentDayName() {
       const todayIdx = (new Date().getDay() + 6) % 7;
       return DAYS[(todayIdx + state.dayOffset + 700) % 7];
     }
-    function getTodayWorkout() { return getActiveProgram()[getPhaseNumber()].days[getCurrentDayName()]; }
+    function getTodayWorkout() {
+      const program = PROGRAMS[state.program];
+      return program[getPhaseNumber()].days[getCurrentDayName()];
+    }
 
     async function loadState() {
       const saved = await get('settings', 'appState');
       if (saved?.value) Object.assign(state, saved.value);
-      if (!state.settings.programType) state.settings.programType = 'calisthenics';
       state.week = state.settings.startWeek || 1;
+      if (!state.program) state.program = 'calisthenics';
     }
     async function saveState() {
       await put('settings', { id:'appState', value: {
-        week: state.week, dayOffset: state.dayOffset,
-        settings: state.settings, completedWorkouts: state.completedWorkouts
+        program: state.program,
+        week: state.week,
+        dayOffset: state.dayOffset,
+        settings: state.settings,
+        completedWorkouts: state.completedWorkouts
       }});
     }
 
@@ -467,17 +451,25 @@
       return {
         id: uid('session'), date: todayStr(), week: state.week, day: getCurrentDayName(),
         phase: getPhaseName(), title: w?.title || 'Session', exercises: exs,
-        energy:'', soreness:'', notes:'', completed:false
+        energy:'', soreness:'', notes:'', completed:false,
+        program: state.program
       };
     }
 
     // ========== RENDER ==========
     async function renderAll() {
+      updateProgramBadge();
       await renderToday();
       renderSessionEditor();
       await renderProgress();
       renderProgram();
       renderSettings();
+    }
+
+    function updateProgramBadge() {
+      const badge = document.getElementById('programBadge');
+      badge.textContent = state.program.toUpperCase();
+      badge.style.background = state.program === 'calisthenics' ? 'var(--accent)' : '#3b82f6';
     }
 
     async function renderToday() {
@@ -500,12 +492,13 @@
       document.getElementById('statusText').textContent = `Water: ${wVal} L`;
     }
 
+    // (rest of render functions unchanged from previous version, but I'm keeping them here for completeness)
     function renderSessionEditor() {
       if (!state.tempSession) state.tempSession = buildSessionDraft();
       const s = state.tempSession;
       const root = document.getElementById('sessionEditor');
       root.innerHTML = `
-        <div class="muted">${s.date} · Week ${s.week} · ${s.day}</div>
+        <div class="muted">${s.date} · Week ${s.week} · ${s.day} (${state.program})</div>
         <div class="list">
           ${s.exercises.map((ex,ei) => `
             <div class="exercise-card">
@@ -588,7 +581,7 @@
       `).join('') : '<div class="muted">Complete sets to see PRs.</div>';
 
       document.getElementById('exerciseHistory').innerHTML = sessions.slice(-10).reverse().map(s => `
-        <div class="history-item"><div><div class="exercise-name">${escapeHtml(s.title)}</div><div class="muted">${s.date} · ${s.day} · Week ${s.week}</div></div></div>
+        <div class="history-item"><div><div class="exercise-name">${escapeHtml(s.title)}</div><div class="muted">${s.date} · ${s.day} · Week ${s.week} · ${s.program||''}</div></div></div>
       `).join('') || '<div class="muted">No sessions yet.</div>';
 
       document.getElementById('weightList').innerHTML = weights.slice(-5).reverse().map(w => `
@@ -642,35 +635,33 @@
     }
 
     function renderProgram() {
-      const activeProgram = getActiveProgram();
       const phaseNum = getPhaseNumber();
-      const phase = activeProgram[phaseNum];
-      let html = '';
+      const program = PROGRAMS[state.program];
+      const phase = program[phaseNum];
+      let html = `<div class="muted">${program.label} — ${phase.phase} (Weeks ${phaseNum===1?'1-4':phaseNum===2?'5-8':'9-12'})</div>`;
       DAYS.forEach(day => {
         const d = phase.days[day];
         if (!d) return;
-        html += `<div class="program-day"><div class="exercise-name">${day} — ${escapeHtml(d.title)}</div><div class="muted">${escapeHtml(d.sub||'')}</div></div>`;
+        html += `<div class="program-day"><div class="exercise-name">${day} — ${escapeHtml(d.title)}</div><div class="muted">${escapeHtml(d.sub||'')}</div>`;
+        if (d.exercises) {
+          d.exercises.forEach(ex => html += `<div class="muted" style="margin-left:12px">• ${escapeHtml(ex.n)} ${ex.s}×${ex.r}</div>`);
+        }
+        html += '</div>';
       });
       document.getElementById('programView').innerHTML = html;
     }
 
     function renderSettings() {
+      document.getElementById('programSelect').value = state.program;
       document.getElementById('startWeekInput').value = state.settings.startWeek;
       document.getElementById('goalWeightInput').value = state.settings.goalWeight;
-      if (document.getElementById('programTypeSelect')) {
-        document.getElementById('programTypeSelect').value = state.settings.programType;
-      }
     }
 
     // ========== TIMER (background-proof) ==========
-    let timerInterval = null;
-    let timerEndTime = null;
-    let timerDisplayEl = null;
+    let timerInterval = null, timerEndTime = null, timerDisplayEl = null;
 
     function requestNotificationPermission() {
-      if ('Notification' in window && Notification.permission === 'default') {
-        Notification.requestPermission();
-      }
+      if ('Notification' in window && Notification.permission === 'default') Notification.requestPermission();
     }
 
     function startTimer(seconds, displayEl) {
@@ -685,35 +676,24 @@
     function updateTimerDisplay() {
       if (!timerEndTime || !timerDisplayEl) return;
       const remaining = Math.max(0, Math.ceil((timerEndTime - Date.now()) / 1000));
-      const mins = Math.floor(remaining / 60);
-      const secs = remaining % 60;
-      timerDisplayEl.textContent = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+      const mins = Math.floor(remaining / 60), secs = remaining % 60;
+      timerDisplayEl.textContent = `${String(mins).padStart(2,'0')}:${String(secs).padStart(2,'0')}`;
       if (remaining <= 0) {
         stopTimer();
-        if ('Notification' in window && Notification.permission === 'granted') {
-          new Notification('FORGE Timer', { body: 'Rest time is up!' });
-        }
+        if ('Notification' in window && Notification.permission === 'granted') new Notification('FORGE Timer', { body: 'Rest time is up!' });
       }
     }
 
     function stopTimer() {
-      if (timerInterval) {
-        clearInterval(timerInterval);
-        timerInterval = null;
-      }
+      if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
       timerEndTime = null;
-      if (timerDisplayEl) {
-        timerDisplayEl.textContent = '00:00';
-        timerDisplayEl = null;
-      }
+      if (timerDisplayEl) { timerDisplayEl.textContent = '00:00'; timerDisplayEl = null; }
     }
 
     document.addEventListener('visibilitychange', () => {
       if (document.visibilityState === 'visible' && timerEndTime) {
         updateTimerDisplay();
-        if (!timerInterval) {
-          timerInterval = setInterval(updateTimerDisplay, 200);
-        }
+        if (!timerInterval) timerInterval = setInterval(updateTimerDisplay, 200);
       }
     });
 
@@ -779,16 +759,10 @@
     }
 
     async function saveSettings() {
+      state.program = document.getElementById('programSelect').value;
       state.settings.startWeek = +document.getElementById('startWeekInput').value || 1;
       state.settings.goalWeight = +document.getElementById('goalWeightInput').value || 68;
       state.week = state.settings.startWeek;
-      await saveState();
-      await renderAll();
-    }
-
-    async function saveProgramType() {
-      const select = document.getElementById('programTypeSelect');
-      state.settings.programType = select.value;
       await saveState();
       await renderAll();
     }
@@ -823,12 +797,9 @@
         if (amt) addWater(amt);
       });
 
-      // Timer setup for both pages
       const setupTimer = (displayId, customId, startId, stopId) => {
         const display = document.getElementById(displayId);
-        document.querySelectorAll('[data-timer]').forEach(b => {
-          b.addEventListener('click', () => startTimer(+b.dataset.timer, display));
-        });
+        document.querySelectorAll('[data-timer]').forEach(b => b.addEventListener('click', () => startTimer(+b.dataset.timer, display)));
         document.getElementById(startId).addEventListener('click', () => {
           const sec = +document.getElementById(customId).value || 0;
           if (sec) startTimer(sec, display);
@@ -843,14 +814,13 @@
       document.getElementById('exportBtn').addEventListener('click', exportData);
       document.getElementById('importInput').addEventListener('change', importData);
       document.getElementById('saveSettingsBtn').addEventListener('click', saveSettings);
-      document.getElementById('saveProgramTypeBtn').addEventListener('click', saveProgramType);
 
       log('Events bound');
     }
 
     // ========== PWA ==========
     if ('serviceWorker' in navigator) {
-      const swCode = `const CACHE='forge-final-v5';self.addEventListener('install',e=>{e.waitUntil(caches.open(CACHE).then(c=>c.addAll(['./'])).then(()=>self.skipWaiting()))});self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(k=>Promise.all(k.map(k=>k!==CACHE?caches.delete(k):null))).then(()=>self.clients.claim()))});self.addEventListener('fetch',e=>{if(e.request.method!=='GET')return;e.respondWith(caches.match(e.request).then(c=>c||fetch(e.request).then(r=>{if(r.ok){const clone=r.clone();caches.open(CACHE).then(c=>c.put(e.request,clone));}return r;}).catch(()=>caches.match('./index.html'))))});`;
+      const swCode = `const CACHE='forge-final-dual';self.addEventListener('install',e=>{e.waitUntil(caches.open(CACHE).then(c=>c.addAll(['./'])).then(()=>self.skipWaiting()))});self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(k=>Promise.all(k.map(k=>k!==CACHE?caches.delete(k):null))).then(()=>self.clients.claim()))});self.addEventListener('fetch',e=>{if(e.request.method!=='GET')return;e.respondWith(caches.match(e.request).then(c=>c||fetch(e.request).then(r=>{if(r.ok){const clone=r.clone();caches.open(CACHE).then(c=>c.put(e.request,clone));}return r;}).catch(()=>caches.match('./index.html'))))});`;
       const blob = new Blob([swCode], {type:'application/javascript'});
       navigator.serviceWorker.register(URL.createObjectURL(blob)).catch(() => {});
     }

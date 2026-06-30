@@ -172,6 +172,7 @@
         <button onclick="document.getElementById('debugOutput').textContent=''" class="secondary">Clear</button>
       </div>
 
+      <!-- TODAY PAGE -->
       <section class="page active" id="page-today">
         <div class="card hero">
           <div class="day-nav">
@@ -213,6 +214,7 @@
         </div>
       </section>
 
+      <!-- LOG PAGE -->
       <section class="page" id="page-log">
         <div class="card">
           <h2>Workout logger</h2>
@@ -238,6 +240,7 @@
         </div>
       </section>
 
+      <!-- PROGRESS PAGE -->
       <section class="page" id="page-progress">
         <div class="card"><h2>Progress overview</h2><div class="stats" id="progressStats"></div></div>
         <div class="card"><h2>Bodyweight chart</h2><canvas id="weightChartCanvas" height="200"></canvas></div>
@@ -253,16 +256,31 @@
         <div class="card"><h2>Exercise history</h2><div id="exerciseHistory"></div></div>
       </section>
 
+      <!-- PROGRAM PAGE -->
       <section class="page" id="page-program">
         <div class="card"><h2>12‑week roadmap</h2><div id="programView"></div></div>
       </section>
 
+      <!-- SETTINGS PAGE -->
       <section class="page" id="page-settings">
         <div class="card">
           <h2>Settings</h2>
           <label class="setting"><span>Start week</span><input id="startWeekInput" type="number" min="1" max="12" /></label>
           <label class="setting"><span>Bodyweight goal</span><input id="goalWeightInput" type="number" step="0.1" /></label>
           <button id="saveSettingsBtn" class="primary">Save settings</button>
+        </div>
+
+        <!-- PROGRAMME SELECTOR -->
+        <div class="card">
+          <h2>Programme</h2>
+          <label class="setting">
+            <span>Training type</span>
+            <select id="programTypeSelect">
+              <option value="calisthenics">Calisthenics</option>
+              <option value="gym">Gym</option>
+            </select>
+          </label>
+          <button id="saveProgramTypeBtn" class="primary">Save programme</button>
         </div>
       </section>
     </main>
@@ -327,7 +345,7 @@
 
     log('DB ready');
 
-    // ========== PROGRAM DATA ==========
+    // ========== PROGRAMME DATA ==========
     const PROGRAM = {
       1: { phase:'Foundation', days: {
         Monday: { title:'Upper Strength', sub:'Compound pull & push.', exercises:[{n:'Pull-ups',s:5,r:'5'},{n:'Push-ups',s:5,r:'15'},{n:'Dips',s:4,r:'8-12'},{n:'Pike push-ups',s:4,r:'10'},{n:'Australian rows',s:4,r:'12'}] },
@@ -342,6 +360,66 @@
       3: { phase:'Peak', days: {} }
     };
 
+    const GYM_PROGRAM = {
+      1: { phase:'Foundation', days: {
+        Monday: { title:'Upper Body Push', sub:'Barbell & dumbbell press focus', exercises:[
+          {n:'Barbell bench press',s:5,r:'5'},{n:'Dumbbell shoulder press',s:4,r:'8-10'},{n:'Incline dumbbell press',s:4,r:'10'},{n:'Cable flyes',s:3,r:'12-15'},{n:'Tricep pushdowns',s:3,r:'12-15'}
+        ]},
+        Tuesday: { title:'Lower Body', sub:'Squat & deadlift foundation', exercises:[
+          {n:'Barbell back squat',s:5,r:'5'},{n:'Romanian deadlift',s:4,r:'8-10'},{n:'Walking lunges (dumbbell)',s:3,r:'10/leg'},{n:'Leg press',s:4,r:'12'},{n:'Calf raises (smith machine)',s:4,r:'15-20'}
+        ]},
+        Wednesday: { title:'Conditioning', sub:'30 min steady‑state cardio', notes:['Treadmill or bike 30‑40 min','Core circuit: 3×30 sec plank, 3×15 leg raises, 3×15 Russian twists'] },
+        Thursday: { title:'Upper Body Pull', sub:'Back & biceps hypertrophy', exercises:[
+          {n:'Barbell rows',s:5,r:'5'},{n:'Lat pulldowns',s:4,r:'10-12'},{n:'Seated cable rows',s:4,r:'10-12'},{n:'Face pulls',s:3,r:'15'},{n:'Dumbbell curls',s:3,r:'12-15'}
+        ]},
+        Friday: { title:'Lower Body Power', sub:'Explosive & accessory work', exercises:[
+          {n:'Deadlifts',s:5,r:'5'},{n:'Bulgarian split squats (dumbbell)',s:4,r:'10/leg'},{n:'Kettlebell swings',s:4,r:'15'},{n:'Hamstring curls',s:3,r:'12-15'},{n:'Calf raises (seated)',s:4,r:'15-20'}
+        ]},
+        Saturday: { title:'Arms & Conditioning', sub:'Arm day + HIIT', exercises:[
+          {n:'Close‑grip bench press',s:4,r:'10'},{n:'Skull crushers',s:3,r:'12'},{n:'Barbell curls',s:4,r:'10'},{n:'Hammer curls',s:3,r:'12'}
+        ], notes:['Finish with 15 min HIIT: 30s sprint / 30s rest on bike or rower']},
+        Sunday: { title:'Recovery', sub:'Mobility & stretching', notes:['Walk 20‑30 min','Foam roll and stretch'] }
+      }},
+      2: { phase:'Build', days: {
+        Monday: { title:'Upper Body Push', sub:'Increase intensity', exercises:[
+          {n:'Barbell bench press',s:5,r:'6-8'},{n:'Dumbbell shoulder press',s:4,r:'8-10'},{n:'Incline dumbbell press',s:4,r:'10'},{n:'Lateral raises',s:4,r:'12-15'},{n:'Overhead tricep extensions',s:3,r:'12-15'}
+        ]},
+        Tuesday: { title:'Lower Body', sub:'Strength & hypertrophy', exercises:[
+          {n:'Barbell back squat',s:5,r:'6-8'},{n:'Romanian deadlift',s:4,r:'8-10'},{n:'Leg extensions',s:4,r:'12'},{n:'Leg curls',s:4,r:'12'},{n:'Calf raises (standing)',s:4,r:'15-20'}
+        ]},
+        Wednesday: { title:'Conditioning', sub:'Intervals or long run', notes:['Option A: 45‑60 min steady run','Option B: 10×100m sprints'] },
+        Thursday: { title:'Upper Body Pull', sub:'Progressive overload', exercises:[
+          {n:'Weighted pull‑ups',s:5,r:'5'},{n:'Barbell rows',s:4,r:'8-10'},{n:'Single‑arm dumbbell rows',s:4,r:'10/arm'},{n:'Reverse pec deck',s:3,r:'15'},{n:'Preacher curls',s:3,r:'12-15'}
+        ]},
+        Friday: { title:'Lower Body Power', sub:'Explosive & heavy', exercises:[
+          {n:'Deadlifts',s:5,r:'5'},{n:'Front squats',s:4,r:'8'},{n:'Box jumps (weighted if possible)',s:4,r:'8'},{n:'Glute bridges (barbell)',s:4,r:'12'},{n:'Calf raises (leg press)',s:4,r:'15-20'}
+        ]},
+        Saturday: { title:'Arms & Conditioning', sub:'Hypertrophy finisher', exercises:[
+          {n:'Dips (weighted)',s:4,r:'10'},{n:'Tricep pushdowns',s:3,r:'12-15'},{n:'Barbell curls',s:4,r:'10'},{n:'Concentration curls',s:3,r:'12'}
+        ], notes:['Finish with 20 min moderate cycling or rowing']},
+        Sunday: { title:'Recovery', sub:'Active rest', notes:['Walk 30 min','Full‑body stretch'] }
+      }},
+      3: { phase:'Peak', days: {
+        Monday: { title:'Upper Body Push', sub:'Strength focus', exercises:[
+          {n:'Barbell bench press',s:5,r:'3-5'},{n:'Overhead press (barbell)',s:5,r:'5'},{n:'Dumbbell flyes',s:3,r:'12'},{n:'Lateral raises',s:4,r:'12-15'},{n:'Dips (weighted)',s:4,r:'8-10'}
+        ]},
+        Tuesday: { title:'Lower Body', sub:'Heavy squat day', exercises:[
+          {n:'Barbell back squat',s:5,r:'3-5'},{n:'Deadlifts',s:5,r:'3-5'},{n:'Walking lunges (barbell)',s:3,r:'10/leg'},{n:'Leg press',s:4,r:'8-10'},{n:'Calf raises',s:4,r:'12-15'}
+        ]},
+        Wednesday: { title:'Conditioning', sub:'Metcon style', notes:['5 rounds: 10 pull‑ups, 15 push‑ups, 20 squats, 200m run (rest 1 min)'] },
+        Thursday: { title:'Upper Body Pull', sub:'Max strength', exercises:[
+          {n:'Weighted pull‑ups',s:5,r:'3-5'},{n:'Barbell rows',s:5,r:'5'},{n:'Lat pulldowns (heavy)',s:4,r:'6-8'},{n:'Face pulls',s:3,r:'15'},{n:'Barbell curls',s:4,r:'8-10'}
+        ]},
+        Friday: { title:'Lower Body Power', sub:'Explosive & accessory', exercises:[
+          {n:'Power cleans',s:5,r:'3'},{n:'Box jumps',s:5,r:'5'},{n:'Bulgarian split squats',s:4,r:'8/leg'},{n:'Hamstring curls',s:3,r:'12'},{n:'Calf raises',s:4,r:'12-15'}
+        ]},
+        Saturday: { title:'Arms & Conditioning', sub:'Arm hypertrophy', exercises:[
+          {n:'Close‑grip bench',s:4,r:'8-10'},{n:'Skull crushers',s:3,r:'12'},{n:'Barbell curls',s:4,r:'8-10'},{n:'Hammer curls',s:3,r:'12'}
+        ], notes:['Finish with 20 min interval rowing']},
+        Sunday: { title:'Recovery', sub:'Rest & stretch', notes:['Complete rest or gentle walk'] }
+      }}
+    };
+
     const DAYS = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
     function todayStr() { return new Date().toISOString().slice(0,10); }
     function escapeHtml(s) { return String(s).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
@@ -350,22 +428,27 @@
     // ========== STATE ==========
     let state = {
       week: 1, dayOffset: 0,
-      settings: { goalWeight: 68, startWeek: 1 },
+      settings: { goalWeight: 68, startWeek: 1, programType: 'calisthenics' },
       completedWorkouts: [],
       tempSession: null
     };
 
+    function getActiveProgram() {
+      return state.settings.programType === 'gym' ? GYM_PROGRAM : PROGRAM;
+    }
+
     function getPhaseNumber() { return state.week <= 4 ? 1 : state.week <= 8 ? 2 : 3; }
-    function getPhaseName() { return PROGRAM[getPhaseNumber()].phase; }
+    function getPhaseName() { return getActiveProgram()[getPhaseNumber()].phase; }
     function getCurrentDayName() {
       const todayIdx = (new Date().getDay() + 6) % 7;
       return DAYS[(todayIdx + state.dayOffset + 700) % 7];
     }
-    function getTodayWorkout() { return PROGRAM[getPhaseNumber()].days[getCurrentDayName()]; }
+    function getTodayWorkout() { return getActiveProgram()[getPhaseNumber()].days[getCurrentDayName()]; }
 
     async function loadState() {
       const saved = await get('settings', 'appState');
       if (saved?.value) Object.assign(state, saved.value);
+      if (!state.settings.programType) state.settings.programType = 'calisthenics';
       state.week = state.settings.startWeek || 1;
     }
     async function saveState() {
@@ -559,7 +642,9 @@
     }
 
     function renderProgram() {
-      const phase = PROGRAM[getPhaseNumber()];
+      const activeProgram = getActiveProgram();
+      const phaseNum = getPhaseNumber();
+      const phase = activeProgram[phaseNum];
       let html = '';
       DAYS.forEach(day => {
         const d = phase.days[day];
@@ -572,6 +657,9 @@
     function renderSettings() {
       document.getElementById('startWeekInput').value = state.settings.startWeek;
       document.getElementById('goalWeightInput').value = state.settings.goalWeight;
+      if (document.getElementById('programTypeSelect')) {
+        document.getElementById('programTypeSelect').value = state.settings.programType;
+      }
     }
 
     // ========== TIMER (background-proof) ==========
@@ -698,6 +786,13 @@
       await renderAll();
     }
 
+    async function saveProgramType() {
+      const select = document.getElementById('programTypeSelect');
+      state.settings.programType = select.value;
+      await saveState();
+      await renderAll();
+    }
+
     function showPage(page) {
       document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.page === page));
       document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
@@ -748,13 +843,14 @@
       document.getElementById('exportBtn').addEventListener('click', exportData);
       document.getElementById('importInput').addEventListener('change', importData);
       document.getElementById('saveSettingsBtn').addEventListener('click', saveSettings);
+      document.getElementById('saveProgramTypeBtn').addEventListener('click', saveProgramType);
 
       log('Events bound');
     }
 
     // ========== PWA ==========
     if ('serviceWorker' in navigator) {
-      const swCode = `const CACHE='forge-final-v4';self.addEventListener('install',e=>{e.waitUntil(caches.open(CACHE).then(c=>c.addAll(['./'])).then(()=>self.skipWaiting()))});self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(k=>Promise.all(k.map(k=>k!==CACHE?caches.delete(k):null))).then(()=>self.clients.claim()))});self.addEventListener('fetch',e=>{if(e.request.method!=='GET')return;e.respondWith(caches.match(e.request).then(c=>c||fetch(e.request).then(r=>{if(r.ok){const clone=r.clone();caches.open(CACHE).then(c=>c.put(e.request,clone));}return r;}).catch(()=>caches.match('./index.html'))))});`;
+      const swCode = `const CACHE='forge-final-v5';self.addEventListener('install',e=>{e.waitUntil(caches.open(CACHE).then(c=>c.addAll(['./'])).then(()=>self.skipWaiting()))});self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(k=>Promise.all(k.map(k=>k!==CACHE?caches.delete(k):null))).then(()=>self.clients.claim()))});self.addEventListener('fetch',e=>{if(e.request.method!=='GET')return;e.respondWith(caches.match(e.request).then(c=>c||fetch(e.request).then(r=>{if(r.ok){const clone=r.clone();caches.open(CACHE).then(c=>c.put(e.request,clone));}return r;}).catch(()=>caches.match('./index.html'))))});`;
       const blob = new Blob([swCode], {type:'application/javascript'});
       navigator.serviceWorker.register(URL.createObjectURL(blob)).catch(() => {});
     }

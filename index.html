@@ -131,6 +131,14 @@
       font-size: 0.7rem; font-weight: 700; text-transform: uppercase; margin-left: 8px;
     }
 
+    .week-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)); gap: 8px; margin-bottom: 12px; }
+    .week-cell {
+      background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+      padding: 12px; text-align: center; font-size: 0.85rem;
+    }
+    .week-cell.current { border-color: var(--accent); color: var(--accent); }
+    .week-cell.done { background: #22c55e15; border-color: #22c55e; color: #22c55e; }
+
     .debug-panel { background: #1a0000; border: 1px solid red; padding: 10px; border-radius: 12px; margin-bottom: 14px; font-size: 0.75rem; }
     .debug-panel pre { color: #ff4444; white-space: pre-wrap; max-height: 120px; overflow: auto; }
 
@@ -263,7 +271,22 @@
 
       <!-- PROGRAM PAGE -->
       <section class="page" id="page-program">
-        <div class="card"><h2>12‑week roadmap</h2><div id="programView"></div></div>
+        <div class="card">
+          <h2>Training Roadmap</h2>
+          <div class="week-grid" id="weekGrid"></div>
+          <p class="muted">Advance weeks manually with the ⏭ button in the header.</p>
+        </div>
+        <div class="card">
+          <h2>This week’s structure</h2>
+          <div id="weekStructure"></div>
+        </div>
+        <div class="card">
+          <h2>Progression rules</h2>
+          <div class="desc-card">① Add reps first when an exercise feels easy.</div>
+          <div class="desc-card">② After reps plateau, add sets.</div>
+          <div class="desc-card">③ Then add weight (backpack or plates).</div>
+          <div class="desc-card">④ Reduce rest periods over time.</div>
+        </div>
       </section>
 
       <!-- SETTINGS PAGE -->
@@ -278,8 +301,8 @@
             </select>
           </label>
           <label class="setting">
-            <span>Start week</span>
-            <input id="startWeekInput" type="number" min="1" max="12" />
+            <span>Current week</span>
+            <input id="startWeekInput" type="number" min="1" />
           </label>
           <label class="setting">
             <span>Bodyweight goal</span>
@@ -302,7 +325,7 @@
     log('Script started');
 
     // ========== IndexedDB ==========
-    const DB_NAME = 'forge-db-dual';
+    const DB_NAME = 'forge-db-infinite';
     let dbPromise;
     function openDB() {
       if (dbPromise) return dbPromise;
@@ -366,7 +389,6 @@
         2: { phase:'Build', days: {} },
         3: { phase:'Peak', days: {} }
       },
-
       gym: {
         label: 'Gym',
         1: { phase:'Foundation', days: {
@@ -415,15 +437,28 @@
       tempSession: null
     };
 
-    function getPhaseNumber() { return state.week <= 4 ? 1 : state.week <= 8 ? 2 : 3; }
-    function getPhaseName() { return PROGRAMS[state.program][getPhaseNumber()].phase; }
+    function getPhaseNumber() {
+      // Weeks 1-4: foundation, 5-8: strength, 9+: peak (indefinitely)
+      if (state.week <= 4) return 1;
+      if (state.week <= 8) return 2;
+      return 3;
+    }
+
+    function getPhaseName() {
+      const phaseNum = getPhaseNumber();
+      const program = PROGRAMS[state.program];
+      return program[phaseNum]?.phase || 'Peak';
+    }
+
     function getCurrentDayName() {
       const todayIdx = (new Date().getDay() + 6) % 7;
       return DAYS[(todayIdx + state.dayOffset + 700) % 7];
     }
+
     function getTodayWorkout() {
       const program = PROGRAMS[state.program];
-      return program[getPhaseNumber()].days[getCurrentDayName()];
+      const phaseNum = getPhaseNumber();
+      return program[phaseNum]?.days?.[getCurrentDayName()];
     }
 
     async function loadState() {
@@ -432,6 +467,7 @@
       state.week = state.settings.startWeek || 1;
       if (!state.program) state.program = 'calisthenics';
     }
+
     async function saveState() {
       await put('settings', { id:'appState', value: {
         program: state.program,
@@ -475,8 +511,8 @@
     async function renderToday() {
       const w = getTodayWorkout();
       document.getElementById('dayNameDisplay').textContent = `Week ${state.week} · ${getCurrentDayName()}`;
-      document.getElementById('todayTitle').textContent = w?.title || 'Session';
-      document.getElementById('todaySubtitle').textContent = w?.sub || '';
+      document.getElementById('todayTitle').textContent = w?.title || 'Rest / Unavailable';
+      document.getElementById('todaySubtitle').textContent = w?.sub || 'No workout scheduled for this day.';
       let html = '';
       if (w?.exercises) {
         html += '<div class="list">';
@@ -492,7 +528,6 @@
       document.getElementById('statusText').textContent = `Water: ${wVal} L`;
     }
 
-    // (rest of render functions unchanged from previous version, but I'm keeping them here for completeness)
     function renderSessionEditor() {
       if (!state.tempSession) state.tempSession = buildSessionDraft();
       const s = state.tempSession;
@@ -638,22 +673,36 @@
       const phaseNum = getPhaseNumber();
       const program = PROGRAMS[state.program];
       const phase = program[phaseNum];
-      let html = `<div class="muted">${program.label} — ${phase.phase} (Weeks ${phaseNum===1?'1-4':phaseNum===2?'5-8':'9-12'})</div>`;
+
+      // Week grid (dynamic, shows up to current week + 4)
+      const maxVisibleWeek = Math.max(state.week + 4, 12);
+      let gridHtml = '';
+      for (let w = 1; w <= maxVisibleWeek; w++) {
+        const done = state.completedWorkouts.some(c => c.week === w);
+        const cls = w === state.week ? 'week-cell current' : done ? 'week-cell done' : 'week-cell';
+        gridHtml += `<div class="${cls}">W${w}</div>`;
+      }
+      document.getElementById('weekGrid').innerHTML = gridHtml;
+
+      // Weekly structure
+      let structureHtml = `<div class="muted">${program.label} — ${phase.phase} phase</div>`;
       DAYS.forEach(day => {
-        const d = phase.days[day];
+        const d = phase.days?.[day];
         if (!d) return;
-        html += `<div class="program-day"><div class="exercise-name">${day} — ${escapeHtml(d.title)}</div><div class="muted">${escapeHtml(d.sub||'')}</div>`;
-        if (d.exercises) {
-          d.exercises.forEach(ex => html += `<div class="muted" style="margin-left:12px">• ${escapeHtml(ex.n)} ${ex.s}×${ex.r}</div>`);
-        }
-        html += '</div>';
+        structureHtml += `
+          <div class="program-day">
+            <div class="exercise-name">${day} — ${escapeHtml(d.title)}</div>
+            <div class="muted">${escapeHtml(d.sub||'')}</div>
+            ${d.exercises ? d.exercises.map(ex => `<div class="muted" style="margin-left:12px">• ${escapeHtml(ex.n)} ${ex.s}×${ex.r}</div>`).join('') : ''}
+            ${d.notes ? d.notes.map(n => `<div class="muted" style="margin-left:12px">→ ${escapeHtml(n)}</div>`).join('') : ''}
+          </div>`;
       });
-      document.getElementById('programView').innerHTML = html;
+      document.getElementById('weekStructure').innerHTML = structureHtml;
     }
 
     function renderSettings() {
       document.getElementById('programSelect').value = state.program;
-      document.getElementById('startWeekInput').value = state.settings.startWeek;
+      document.getElementById('startWeekInput').value = state.week;
       document.getElementById('goalWeightInput').value = state.settings.goalWeight;
     }
 
@@ -760,11 +809,18 @@
 
     async function saveSettings() {
       state.program = document.getElementById('programSelect').value;
-      state.settings.startWeek = +document.getElementById('startWeekInput').value || 1;
+      state.week = +document.getElementById('startWeekInput').value || 1;
+      state.settings.startWeek = state.week;
       state.settings.goalWeight = +document.getElementById('goalWeightInput').value || 68;
-      state.week = state.settings.startWeek;
       await saveState();
       await renderAll();
+    }
+
+    // Advance week (no cap)
+    function advanceWeek() {
+      state.week++;
+      saveState();
+      renderAll();
     }
 
     function showPage(page) {
@@ -815,12 +871,15 @@
       document.getElementById('importInput').addEventListener('change', importData);
       document.getElementById('saveSettingsBtn').addEventListener('click', saveSettings);
 
+      // Advance week button in header
+      document.querySelector('.icon-btn[title="Advance week"]').addEventListener('click', advanceWeek);
+
       log('Events bound');
     }
 
     // ========== PWA ==========
     if ('serviceWorker' in navigator) {
-      const swCode = `const CACHE='forge-final-dual';self.addEventListener('install',e=>{e.waitUntil(caches.open(CACHE).then(c=>c.addAll(['./'])).then(()=>self.skipWaiting()))});self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(k=>Promise.all(k.map(k=>k!==CACHE?caches.delete(k):null))).then(()=>self.clients.claim()))});self.addEventListener('fetch',e=>{if(e.request.method!=='GET')return;e.respondWith(caches.match(e.request).then(c=>c||fetch(e.request).then(r=>{if(r.ok){const clone=r.clone();caches.open(CACHE).then(c=>c.put(e.request,clone));}return r;}).catch(()=>caches.match('./index.html'))))});`;
+      const swCode = `const CACHE='forge-infinite-v1';self.addEventListener('install',e=>{e.waitUntil(caches.open(CACHE).then(c=>c.addAll(['./'])).then(()=>self.skipWaiting()))});self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(k=>Promise.all(k.map(k=>k!==CACHE?caches.delete(k):null))).then(()=>self.clients.claim()))});self.addEventListener('fetch',e=>{if(e.request.method!=='GET')return;e.respondWith(caches.match(e.request).then(c=>c||fetch(e.request).then(r=>{if(r.ok){const clone=r.clone();caches.open(CACHE).then(c=>c.put(e.request,clone));}return r;}).catch(()=>caches.match('./index.html'))))});`;
       const blob = new Blob([swCode], {type:'application/javascript'});
       navigator.serviceWorker.register(URL.createObjectURL(blob)).catch(() => {});
     }

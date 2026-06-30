@@ -1,5 +1,97 @@
-import { getAll, get, put, del, exportDB, importDB, uid } from './db.js';
+// ========== DB functions (inline) ==========
+const DB_NAME = 'forge-db-v2';
+const DB_VERSION = 1;
+let dbPromise = null;
 
+function openDB() {
+  if (dbPromise) return dbPromise;
+  dbPromise = new Promise((resolve, reject) => {
+    const req = indexedDB.open(DB_NAME, DB_VERSION);
+    req.onupgradeneeded = () => {
+      const db = req.result;
+      if (!db.objectStoreNames.contains('settings')) db.createObjectStore('settings', { keyPath: 'key' });
+      if (!db.objectStoreNames.contains('sessions')) db.createObjectStore('sessions', { keyPath: 'id' });
+      if (!db.objectStoreNames.contains('weights')) db.createObjectStore('weights', { keyPath: 'id' });
+      if (!db.objectStoreNames.contains('nutrition')) db.createObjectStore('nutrition', { keyPath: 'id' });
+      if (!db.objectStoreNames.contains('notes')) db.createObjectStore('notes', { keyPath: 'id' });
+    };
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+  return dbPromise;
+}
+
+function tx(store, mode = 'readonly') {
+  return openDB().then(db => db.transaction(store, mode).objectStore(store));
+}
+
+async function getAll(storeName) {
+  const store = await tx(storeName);
+  return await new Promise((resolve, reject) => {
+    const req = store.getAll();
+    req.onsuccess = () => resolve(req.result || []);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+async function get(storeName, key) {
+  const store = await tx(storeName);
+  return await new Promise((resolve, reject) => {
+    const req = store.get(key);
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+async function put(storeName, value) {
+  const store = await tx(storeName, 'readwrite');
+  return await new Promise((resolve, reject) => {
+    const req = store.put(value);
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+async function del(storeName, key) {
+  const store = await tx(storeName, 'readwrite');
+  return await new Promise((resolve, reject) => {
+    const req = store.delete(key);
+    req.onsuccess = () => resolve(true);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+async function clearStore(storeName) {
+  const store = await tx(storeName, 'readwrite');
+  return await new Promise((resolve, reject) => {
+    const req = store.clear();
+    req.onsuccess = () => resolve(true);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+async function exportDB() {
+  const [settings, sessions, weights, nutrition, notes] = await Promise.all([
+    getAll('settings'), getAll('sessions'), getAll('weights'),
+    getAll('nutrition'), getAll('notes')
+  ]);
+  return { settings, sessions, weights, nutrition, notes, exportedAt: new Date().toISOString() };
+}
+
+async function importDB(data) {
+  if (!data || typeof data !== 'object') throw new Error('Invalid import file');
+  for (const row of data.settings || []) await put('settings', row);
+  for (const row of data.sessions || []) await put('sessions', row);
+  for (const row of data.weights || []) await put('weights', row);
+  for (const row of data.nutrition || []) await put('nutrition', row);
+  for (const row of data.notes || []) await put('notes', row);
+}
+
+function uid(prefix = 'id') {
+  return `${prefix}_${crypto.randomUUID()}`;
+}
+
+// ========== App logic ==========
 const PROGRAM = {
   1: {
     phase: 'Foundation',
@@ -37,7 +129,7 @@ const PROGRAM = {
       Sunday: { title: 'Recovery', sub: 'Mobility & light movement.', notes: ['Walk 20–30 min', 'Stretch hips, hamstrings, lats'] }
     }
   },
-  2: { phase: 'Build', days: {} }, // simplified for space – copy from v1 or extend
+  2: { phase: 'Build', days: {} },
   3: { phase: 'Peak', days: {} }
 };
 
@@ -55,7 +147,6 @@ let weightChart = null;
 let timerInterval = null;
 let timerSeconds = 0;
 
-// Helper functions
 function todayStr() { return new Date().toISOString().slice(0, 10); }
 function escapeHtml(str) { return String(str).replace(/[&<>"']/g, m => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m])); }
 function escapeAttr(str) { return escapeHtml(str).replace(/"/g, '&quot;'); }
@@ -68,7 +159,6 @@ function getCurrentDayName() {
 }
 function getTodayWorkout() { return PROGRAM[getPhaseNumber()].days[getCurrentDayName()]; }
 
-// State initialisation
 async function loadState() {
   const saved = await get('settings', 'appState');
   if (saved?.value) state = { ...state, ...saved.value };
@@ -101,7 +191,6 @@ function buildSessionDraft() {
   };
 }
 
-// Render functions
 async function renderAll() {
   await renderToday();
   await renderLogPage();
@@ -110,14 +199,12 @@ async function renderAll() {
   renderSettings();
 }
 
-// ── TODAY PAGE ──
 async function renderToday() {
   const workout = getTodayWorkout();
   document.getElementById('dayNameDisplay').textContent = `Week ${state.week} · ${getCurrentDayName()}`;
   document.getElementById('todayTitle').textContent = workout?.title || 'Session';
   document.getElementById('todaySubtitle').textContent = workout?.sub || '';
   document.getElementById('todayWorkoutPreview').innerHTML = renderWorkoutPreview(workout);
-
   const water = await get('notes', 'today-water');
   const w = (water?.value || 0).toFixed(2);
   document.getElementById('waterTotal').textContent = `Total today: ${w} L`;
@@ -137,7 +224,7 @@ function renderWorkoutPreview(workout) {
     </div>`;
 }
 
-// ── LOG PAGE ──
+// ========== Session editor (with add/remove sets) ==========
 function renderSessionEditor() {
   if (!state.tempSession) state.tempSession = buildSessionDraft();
   const s = state.tempSession;
@@ -172,7 +259,6 @@ function renderSessionEditor() {
     <button id="addExerciseBtn" class="secondary" style="margin-top:10px">+ Add exercise</button>
   `;
 
-  // Event delegation for inputs & buttons
   root.querySelectorAll('input[data-e]').forEach(input => {
     input.addEventListener('input', e => {
       const ei = Number(e.target.dataset.e), li = Number(e.target.dataset.l);
@@ -216,11 +302,9 @@ function renderSessionEditor() {
   });
 }
 
-async function renderLogPage() {
-  renderSessionEditor();
-}
+async function renderLogPage() { renderSessionEditor(); }
 
-// ── PROGRESS PAGE ──
+// ========== Progress page ==========
 async function renderProgress() {
   const sessions = await getAll('sessions');
   const weights = await getAll('weights');
@@ -237,7 +321,6 @@ async function renderProgress() {
     <div class="stat"><div class="stat-value">${totalProtein}g</div><div class="stat-label">Protein</div></div>
   `;
 
-  // PR detection
   const prs = computePRs(sessions);
   document.getElementById('prList').innerHTML = prs.length ? prs.map(p => `
     <div class="log-row">
@@ -248,7 +331,6 @@ async function renderProgress() {
     </div>
   `).join('') : '<div class="muted">Complete sets to see PRs.</div>';
 
-  // Exercise history
   document.getElementById('exerciseHistory').innerHTML = sessions.slice(-10).reverse().map(s => `
     <div class="history-item">
       <div>
@@ -258,7 +340,6 @@ async function renderProgress() {
     </div>
   `).join('') || '<div class="muted">No sessions yet.</div>';
 
-  // Weight list
   document.getElementById('weightList').innerHTML = weights.slice(-10).reverse().map(w => `
     <div class="weight-item">
       <div>${escapeHtml(w.date)}</div>
@@ -325,7 +406,7 @@ function drawWeightChart(weights) {
   });
 }
 
-// ── PROGRAM PAGE ──
+// ========== Program & Settings ==========
 function renderProgram() {
   const phaseNum = getPhaseNumber();
   const phase = PROGRAM[phaseNum];
@@ -343,70 +424,12 @@ function renderProgram() {
   document.getElementById('programView').innerHTML = html;
 }
 
-// ── SETTINGS PAGE ──
 function renderSettings() {
   document.getElementById('startWeekInput').value = state.settings.startWeek;
   document.getElementById('goalWeightInput').value = state.settings.goalWeight;
 }
 
-// ── EVENT BINDING ──
-function registerEvents() {
-  // Tabs
-  document.querySelectorAll('.tab').forEach(btn => {
-    btn.addEventListener('click', () => showPage(btn.dataset.page));
-  });
-
-  // Today buttons
-  document.getElementById('startWorkoutBtn').addEventListener('click', () => {
-    state.tempSession = buildSessionDraft();
-    renderSessionEditor();
-    showPage('log');
-  });
-  document.getElementById('quickCompleteBtn').addEventListener('click', async () => {
-    const draft = buildSessionDraft();
-    draft.completed = true;
-    await put('sessions', draft);
-    state.completedWorkouts.push({ id: draft.id, date: draft.date, day: draft.day, week: draft.week });
-    await saveState();
-    await renderAll();
-  });
-  document.getElementById('prevDayBtn').addEventListener('click', () => { state.dayOffset--; saveState(); renderAll(); });
-  document.getElementById('nextDayBtn').addEventListener('click', () => { state.dayOffset++; saveState(); renderAll(); });
-  document.getElementById('todayBtn').addEventListener('click', () => { state.dayOffset = 0; saveState(); renderAll(); });
-
-  // Water
-  document.querySelectorAll('[data-water]').forEach(btn => {
-    btn.addEventListener('click', () => addWater(parseFloat(btn.dataset.water)));
-  });
-  document.getElementById('addCustomWaterBtn').addEventListener('click', () => {
-    const amt = parseFloat(document.getElementById('customWater').value || 0);
-    if (amt) addWater(amt);
-  });
-
-  // Rest timer (both pages)
-  setupTimerButtons('timerDisplay', 'customTimerSec', 'startCustomTimerBtn', 'stopTimerBtn');
-  setupTimerButtons('timerDisplay2', 'customTimerSec2', 'startCustomTimerBtn2', 'stopTimerBtn2');
-
-  // Log page actions
-  document.getElementById('saveSessionBtn').addEventListener('click', saveSession);
-
-  // Nutrition
-  // (nutrition not integrated in UI here but you can add later; focus on core features)
-
-  // Export / Import
-  document.getElementById('exportBtn').addEventListener('click', exportData);
-  document.getElementById('importInput').addEventListener('change', importData);
-
-  // Settings
-  document.getElementById('saveSettingsBtn').addEventListener('click', saveSettings);
-
-  // PR badge check (after saving a session)
-  window.addEventListener('sessionSaved', () => {
-    document.getElementById('prBadge').style.display = 'block';
-    setTimeout(() => document.getElementById('prBadge').style.display = 'none', 3000);
-  });
-}
-
+// ========== Timer ==========
 function setupTimerButtons(displayId, customSecId, startBtnId, stopBtnId) {
   const display = document.getElementById(displayId);
   const customSec = document.getElementById(customSecId);
@@ -435,7 +458,6 @@ function startTimer(seconds, displayEl) {
       clearInterval(timerInterval);
       timerInterval = null;
       displayEl.textContent = '00:00';
-      // optional beep
     } else {
       updateTimerDisplay(displayEl);
     }
@@ -453,6 +475,7 @@ function updateTimerDisplay(el) {
   el.textContent = `${String(mins).padStart(2,'0')}:${String(secs).padStart(2,'0')}`;
 }
 
+// ========== Actions ==========
 async function addWater(amount) {
   const item = await get('notes', 'today-water');
   const current = item?.value || 0;
@@ -513,7 +536,55 @@ function showPage(page) {
   if (page === 'progress') renderProgress();
 }
 
-// ── INIT ──
+// ========== Register events ==========
+function registerEvents() {
+  document.querySelectorAll('.tab').forEach(btn => {
+    btn.addEventListener('click', () => showPage(btn.dataset.page));
+  });
+
+  document.getElementById('startWorkoutBtn').addEventListener('click', () => {
+    state.tempSession = buildSessionDraft();
+    renderSessionEditor();
+    showPage('log');
+  });
+
+  document.getElementById('quickCompleteBtn').addEventListener('click', async () => {
+    const draft = buildSessionDraft();
+    draft.completed = true;
+    await put('sessions', draft);
+    state.completedWorkouts.push({ id: draft.id, date: draft.date, day: draft.day, week: draft.week });
+    await saveState();
+    await renderAll();
+  });
+
+  document.getElementById('prevDayBtn').addEventListener('click', () => { state.dayOffset--; saveState(); renderAll(); });
+  document.getElementById('nextDayBtn').addEventListener('click', () => { state.dayOffset++; saveState(); renderAll(); });
+  document.getElementById('todayBtn').addEventListener('click', () => { state.dayOffset = 0; saveState(); renderAll(); });
+
+  document.querySelectorAll('[data-water]').forEach(btn => {
+    btn.addEventListener('click', () => addWater(parseFloat(btn.dataset.water)));
+  });
+
+  document.getElementById('addCustomWaterBtn').addEventListener('click', () => {
+    const amt = parseFloat(document.getElementById('customWater').value || 0);
+    if (amt) addWater(amt);
+  });
+
+  setupTimerButtons('timerDisplay', 'customTimerSec', 'startCustomTimerBtn', 'stopTimerBtn');
+  setupTimerButtons('timerDisplay2', 'customTimerSec2', 'startCustomTimerBtn2', 'stopTimerBtn2');
+
+  document.getElementById('saveSessionBtn').addEventListener('click', saveSession);
+  document.getElementById('exportBtn').addEventListener('click', exportData);
+  document.getElementById('importInput').addEventListener('change', importData);
+  document.getElementById('saveSettingsBtn').addEventListener('click', saveSettings);
+
+  window.addEventListener('sessionSaved', () => {
+    document.getElementById('prBadge').style.display = 'block';
+    setTimeout(() => document.getElementById('prBadge').style.display = 'none', 3000);
+  });
+}
+
+// ========== Init ==========
 (async () => {
   await loadState();
   await renderAll();

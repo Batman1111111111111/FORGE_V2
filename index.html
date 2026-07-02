@@ -159,7 +159,6 @@
         </label>
       </div>
     </header>
-
     <nav class="tabs">
       <button class="tab active" data-page="today">Today</button>
       <button class="tab" data-page="log">Log</button>
@@ -167,14 +166,12 @@
       <button class="tab" data-page="program">Program</button>
       <button class="tab" data-page="settings">Settings</button>
     </nav>
-
     <main>
       <div class="debug-panel" id="debugPanel">
         <h2>🐛 Debug</h2>
         <pre id="debugOutput">Loading...</pre>
         <button onclick="document.getElementById('debugOutput').textContent=''" class="secondary">Clear</button>
       </div>
-
       <section class="page active" id="page-today">
         <div class="card hero">
           <div class="day-nav">
@@ -215,7 +212,6 @@
           <p class="subtle" id="waterTotal">Total today: 0 L</p>
         </div>
       </section>
-
       <section class="page" id="page-log">
         <div class="card">
           <h2>Workout logger</h2>
@@ -240,7 +236,6 @@
           </div>
         </div>
       </section>
-
       <section class="page" id="page-progress">
         <div class="card"><h2>Progress overview</h2><div class="stats" id="progressStats"></div></div>
         <div class="card"><h2>Bodyweight chart</h2><canvas id="weightChartCanvas" height="200"></canvas></div>
@@ -255,36 +250,20 @@
         <div class="card"><h2>Personal records</h2><div id="prList"></div></div>
         <div class="card"><h2>Exercise history</h2><div id="exerciseHistory"></div></div>
       </section>
-
       <section class="page" id="page-program">
         <div class="card"><h2>Your Roadmap</h2><div id="programView"></div></div>
       </section>
-
       <section class="page" id="page-settings">
         <div class="card">
           <h2>Program</h2>
-          <label class="setting">
-            <span>Training program</span>
-            <select id="programSelect">
-              <option value="calisthenics">Calisthenics (Bodyweight)</option>
-              <option value="gym">Gym (Hybrid Athlete)</option>
-            </select>
-          </label>
-          <label class="setting">
-            <span>Start week</span>
-            <input id="startWeekInput" type="number" min="1" />
-          </label>
-          <label class="setting">
-            <span>Bodyweight goal</span>
-            <input id="goalWeightInput" type="number" step="0.1" />
-          </label>
+          <label class="setting"><span>Training program</span><select id="programSelect"><option value="calisthenics">Calisthenics (Bodyweight)</option><option value="gym">Gym (Hybrid Athlete)</option></select></label>
+          <label class="setting"><span>Start week</span><input id="startWeekInput" type="number" min="1" /></label>
+          <label class="setting"><span>Bodyweight goal</span><input id="goalWeightInput" type="number" step="0.1" /></label>
           <button id="saveSettingsBtn" class="primary">Save settings</button>
         </div>
       </section>
     </main>
   </div>
-
-  <!-- MODAL for exercise tips & training guide -->
   <div id="infoModal" class="modal-overlay" style="display:none;">
     <div class="modal-content">
       <h3 id="modalTitle">Exercise Tips</h3>
@@ -292,19 +271,13 @@
       <button class="modal-close" onclick="closeModal()">Close</button>
     </div>
   </div>
-
   <script>
-    // ========== DEBUG LOG ==========
     const debugEl = document.getElementById('debugOutput');
-    function log(msg) {
-      const line = new Date().toLocaleTimeString() + ' ' + msg;
-      debugEl.textContent += '\n' + line;
-      console.log(msg);
-    }
+    function log(msg) { const line = new Date().toLocaleTimeString() + ' ' + msg; debugEl.textContent += '\n' + line; console.log(msg); }
     log('Script started');
 
-    // ========== IndexedDB ==========
-    const DB_NAME = 'forge-db-unending';
+    // IndexedDB
+    const DB_NAME = 'forge-final';
     let dbPromise;
     function openDB() {
       if (dbPromise) return dbPromise;
@@ -312,8 +285,8 @@
         const req = indexedDB.open(DB_NAME, 1);
         req.onupgradeneeded = () => {
           const db = req.result;
-          ['settings','sessions','weights','nutrition','notes'].forEach(store => {
-            if (!db.objectStoreNames.contains(store)) db.createObjectStore(store, { keyPath: 'id' });
+          ['settings','sessions','weights','nutrition','notes'].forEach(s => {
+            if (!db.objectStoreNames.contains(s)) db.createObjectStore(s, { keyPath: 'id' });
           });
         };
         req.onsuccess = () => resolve(req.result);
@@ -321,868 +294,208 @@
       });
       return dbPromise;
     }
-    async function getAll(store) {
-      const db = await openDB();
-      return new Promise((resolve, reject) => {
-        const tx = db.transaction(store, 'readonly');
-        const req = tx.objectStore(store).getAll();
-        req.onsuccess = () => resolve(req.result);
-        req.onerror = () => reject(req.error);
-      });
-    }
-    async function get(store, key) {
-      const db = await openDB();
-      return new Promise((resolve, reject) => {
-        const tx = db.transaction(store, 'readonly');
-        const req = tx.objectStore(store).get(key);
-        req.onsuccess = () => resolve(req.result);
-        req.onerror = () => reject(req.error);
-      });
-    }
-    async function put(store, value) {
-      const db = await openDB();
-      return new Promise((resolve, reject) => {
-        const tx = db.transaction(store, 'readwrite');
-        const req = tx.objectStore(store).put(value);
-        req.onsuccess = () => resolve();
-        req.onerror = () => reject(req.error);
-      });
-    }
-    function uid(p = 'id') { return p + '_' + crypto.randomUUID(); }
-
+    async function getAll(store) { const db = await openDB(); return new Promise((r,rej)=>{ const tx = db.transaction(store,'readonly'); const req = tx.objectStore(store).getAll(); req.onsuccess = () => r(req.result); req.onerror = () => rej(req.error); }); }
+    async function get(store, key) { const db = await openDB(); return new Promise((r,rej)=>{ const tx = db.transaction(store,'readonly'); const req = tx.objectStore(store).get(key); req.onsuccess = () => r(req.result); req.onerror = () => rej(req.error); }); }
+    async function put(store, value) { const db = await openDB(); return new Promise((r,rej)=>{ const tx = db.transaction(store,'readwrite'); const req = tx.objectStore(store).put(value); req.onsuccess = () => r(); req.onerror = () => rej(req.error); }); }
+    function uid(p='id') { return p+'_'+crypto.randomUUID(); }
     log('DB ready');
 
-    // ========== EXERCISE TIPS DATABASE ==========
+    // Exercise tips
     const EXERCISE_TIPS = {
-      // Calisthenics
-      'Pull-ups': {
-        goal: 'Strength/Hypertrophy',
-        rest: '2–3 min for strength, 60–90 sec for hypertrophy',
-        technique: 'Dead hang → pull chest to bar, avoid kipping. Squeeze lats at bottom.',
-        tempo: 'Strength: 2-1-1 (lower 2s, pause 1s, drive 1s). Hypertrophy: 3-1-1',
-        mistakes: 'Swinging, not full range of motion, elbows flaring.'
-      },
-      'Push-ups': {
-        goal: 'Hypertrophy/Endurance',
-        rest: '60–90 sec',
-        technique: 'Hands shoulder-width, body straight, lower chest to floor, elbows ~45° from body.',
-        tempo: '3-1-1 for hypertrophy, 1-0-1 for power',
-        mistakes: 'Sagging hips, flared elbows, half reps.'
-      },
-      'Dips': {
-        goal: 'Strength/Hypertrophy',
-        rest: '2–3 min',
-        technique: 'Shoulders down, lean slightly forward, lower until upper arms parallel to ground.',
-        tempo: '2-1-1',
-        mistakes: 'Shrugging shoulders, going too deep (shoulder strain).'
-      },
-      'Pike push-ups': {
-        goal: 'Shoulder hypertrophy',
-        rest: '60–90 sec',
-        technique: 'Hips high, head between arms, lower crown of head toward floor.',
-        tempo: '3-1-1',
-        mistakes: 'Bending knees, not keeping hips high.'
-      },
-      'Australian rows': {
-        goal: 'Back hypertrophy',
-        rest: '60–90 sec',
-        technique: 'Body straight, pull chest to bar, squeeze shoulder blades.',
-        tempo: '2-1-2',
-        mistakes: 'Hips sagging, pulling with arms only.'
-      },
-      'Squats': {
-        goal: 'Leg strength/hypertrophy',
-        rest: '2–3 min for heavy, 60–90 sec for volume',
-        technique: 'Feet shoulder-width, knees track over toes, thighs parallel or deeper.',
-        tempo: '3-1-1 for hypertrophy, 2-0-1 for strength',
-        mistakes: 'Knees caving in, heels lifting, rounding back.'
-      },
-      'Bulgarian split squats': {
-        goal: 'Unilateral leg strength',
-        rest: '90 sec – 2 min',
-        technique: 'Back foot elevated, front knee stays behind toes, upright torso.',
-        tempo: '3-1-1',
-        mistakes: 'Leaning too far forward, knee past toes.'
-      },
-      'Walking lunges': {
-        goal: 'Leg hypertrophy/endurance',
-        rest: '60 sec',
-        technique: 'Step forward, both knees 90°, push off front foot.',
-        tempo: '2-0-2',
-        mistakes: 'Short steps, knee touching ground hard.'
-      },
-      'Glute bridges': {
-        goal: 'Glute activation/hypertrophy',
-        rest: '60 sec',
-        technique: 'Shoulders on floor, drive through heels, squeeze glutes at top.',
-        tempo: '2-1-2',
-        mistakes: 'Hyperextending back, not engaging glutes.'
-      },
-      'Calf raises': {
-        goal: 'Calf hypertrophy/endurance',
-        rest: '45–60 sec',
-        technique: 'Full range, stretch at bottom, explode up.',
-        tempo: '2-1-2',
-        mistakes: 'Bouncing, partial reps.'
-      },
-      'Box jumps': {
-        goal: 'Power',
-        rest: '2–3 min',
-        technique: 'Start in athletic stance, explode upward, land softly, step down.',
-        tempo: 'Explosive, max intent.',
-        mistakes: 'Landing hard, not fully extending hips.'
-      },
-      'Jump squats': {
-        goal: 'Power',
-        rest: '2–3 min',
-        technique: 'Squat down then jump as high as possible, land softly.',
-        tempo: 'Explosive.',
-        mistakes: 'Not using arms, landing stiff-legged.'
-      },
-      'Broad jumps': {
-        goal: 'Power',
-        rest: '2–3 min',
-        technique: 'Swing arms, explode forward, land in squat position.',
-        tempo: 'Explosive.',
-        mistakes: 'Not using arms, landing flat-footed.'
-      },
-      'Explosive push-ups': {
-        goal: 'Upper body power',
-        rest: '2 min',
-        technique: 'Lower chest, push explosively until hands leave ground (or clap).',
-        tempo: 'Max effort.',
-        mistakes: 'Not enough downward force, landing with elbows locked.'
-      },
-      'Clapping push-ups': {
-        goal: 'Upper body power',
-        rest: '2 min',
-        technique: 'Same as explosive but clap at top.',
-        tempo: 'Explosive.',
-        mistakes: 'Not enough height to clap, crashing down.'
-      },
-      'Handstand practice': {
-        goal: 'Skill/balance',
-        rest: 'As needed',
-        technique: 'Kick up against wall, body tight, look at hands. Progress to freestanding.',
-        tempo: 'Hold for time.',
-        mistakes: 'Arched back, looking at feet.'
-      },
-      'Pistol squat progression': {
-        goal: 'Unilateral leg strength',
-        rest: '90 sec – 2 min',
-        technique: 'Use support if needed, lower slowly, keep non-working leg straight.',
-        tempo: '3-1-1',
-        mistakes: 'Heel lifting, knee caving.'
-      },
-      'Hill sprints': {
-        goal: 'Power/Conditioning',
-        rest: 'Walk back recovery (2–3 min)',
-        technique: 'Sprint at 90% effort, drive knees, pump arms.',
-        tempo: 'Explosive.',
-        mistakes: 'Leaning back, short strides.'
-      },
-      'Archer push-ups': {
-        goal: 'Strength/Hypertrophy',
-        rest: '2 min',
-        technique: 'One arm straight, other bent; lower to bent arm side, push back.',
-        tempo: '3-1-1',
-        mistakes: 'Hips twisting, not full range.'
-      },
-      'Pseudo planche push-ups': {
-        goal: 'Strength/Hypertrophy',
-        rest: '2 min',
-        technique: 'Lean forward, hands near waist, body hollow, push.',
-        tempo: '3-1-1',
-        mistakes: 'Hips piking, not leaning enough.'
-      },
-      // Gym exercises
-      'Bench Press': {
-        goal: 'Strength/Hypertrophy',
-        rest: '3–5 min for strength, 60–90 sec for hypertrophy',
-        technique: 'Feet flat, arch slightly, touch bar to chest, drive up.',
-        tempo: 'Strength: 2-0-1; Hypertrophy: 3-1-1',
-        mistakes: 'Bouncing off chest, flared elbows, uneven lockout.'
-      },
-      'Weighted Pull-ups': {
-        goal: 'Strength/Hypertrophy',
-        rest: '2–3 min',
-        technique: 'Add weight via belt/vest, same as pull-ups.',
-        tempo: '2-1-1',
-        mistakes: 'Using momentum, not full ROM.'
-      },
-      'Overhead Press': {
-        goal: 'Strength/Hypertrophy',
-        rest: '2–3 min',
-        technique: 'Bar from front delts, press overhead, lock elbows.',
-        tempo: '2-0-1',
-        mistakes: 'Leaning back excessively, not locking out.'
-      },
-      'Barbell Row': {
-        goal: 'Strength/Hypertrophy',
-        rest: '2–3 min',
-        technique: 'Hinge at hips, back straight, pull bar to lower chest.',
-        tempo: '2-1-2',
-        mistakes: 'Rounding back, using too much body English.'
-      },
-      'Face Pulls': {
-        goal: 'Shoulder health/hypertrophy',
-        rest: '60 sec',
-        technique: 'Cable at face height, pull to forehead, external rotate, squeeze rear delts.',
-        tempo: '2-1-2',
-        mistakes: 'Using too much weight, not rotating.'
-      },
-      'Hanging Leg Raises': {
-        goal: 'Core',
-        rest: '60 sec',
-        technique: 'Hang, raise legs to L-sit or toes to bar, control descent.',
-        tempo: '2-1-2',
-        mistakes: 'Swinging, using hip flexors only.'
-      },
-      'Back Squat': {
-        goal: 'Strength/Hypertrophy',
-        rest: '3–5 min for heavy sets, 2 min for volume',
-        technique: 'Bar on traps, break at hips/knees, depth parallel or lower.',
-        tempo: '2-0-1 for strength, 3-1-1 for hypertrophy',
-        mistakes: 'Knees caving, rounding back, heels rising.'
-      },
-      'Romanian Deadlift': {
-        goal: 'Posterior chain',
-        rest: '2 min',
-        technique: 'Slight knee bend, hinge at hips, lower bar along shins, feel hamstring stretch.',
-        tempo: '3-1-1',
-        mistakes: 'Rounding back, bending knees too much.'
-      },
-      'Power Clean': {
-        goal: 'Power',
-        rest: '2–3 min',
-        technique: 'Explosive triple extension, catch in front rack, elbows high.',
-        tempo: 'Explosive.',
-        mistakes: 'Pulling with arms early, not extending hips.'
-      },
-      'Incline Dumbbell Press': {
-        goal: 'Hypertrophy',
-        rest: '60–90 sec',
-        technique: 'Bench at 30–45°, dumbbells over chest, lower to sides, press up.',
-        tempo: '3-1-1',
-        mistakes: 'Flaring elbows, using too much back arch.'
-      },
-      'Lat Pulldown': {
-        goal: 'Hypertrophy',
-        rest: '60–90 sec',
-        technique: 'Wide grip, pull to upper chest, squeeze lats.',
-        tempo: '3-1-2',
-        mistakes: 'Leaning back too far, using momentum.'
-      },
-      'Dumbbell Lateral Raise': {
-        goal: 'Hypertrophy',
-        rest: '60 sec',
-        technique: 'Slight bend in elbows, raise to shoulder height, control down.',
-        tempo: '2-1-2',
-        mistakes: 'Using momentum, shrugging.'
-      },
-      'Barbell Curl': {
-        goal: 'Hypertrophy',
-        rest: '60 sec',
-        technique: 'Elbows at sides, curl without swinging, squeeze at top.',
-        tempo: '3-1-2',
-        mistakes: 'Swinging, not full ROM.'
-      },
-      'Triceps Pushdown': {
-        goal: 'Hypertrophy',
-        rest: '60 sec',
-        technique: 'Elbows pinned, push down until arms straight, control up.',
-        tempo: '2-1-2',
-        mistakes: 'Elbows drifting forward, using body weight.'
-      },
-      'Front Squat': {
-        goal: 'Strength/Hypertrophy',
-        rest: '2–3 min',
-        technique: 'Bar on front delts, elbows high, upright torso.',
-        tempo: '2-0-1',
-        mistakes: 'Elbows dropping, rounding back.'
-      },
-      'Leg Press': {
-        goal: 'Hypertrophy',
-        rest: '90 sec',
-        technique: 'Feet high, push through heels, don’t lock knees.',
-        tempo: '3-1-1',
-        mistakes: 'Locking knees, going too shallow.'
-      },
-      'Leg Curl': {
-        goal: 'Hypertrophy',
-        rest: '60 sec',
-        technique: 'Lying/seated, curl weight toward glutes, control.',
-        tempo: '2-1-2',
-        mistakes: 'Using momentum, not full ROM.'
-      },
-      'Leg Extension': {
-        goal: 'Hypertrophy',
-        rest: '60 sec',
-        technique: 'Knees at 90°, extend fully, squeeze quads.',
-        tempo: '2-1-2',
-        mistakes: 'Swinging, not pausing at top.'
-      },
-      'Standing Calf Raise': {
-        goal: 'Hypertrophy',
-        rest: '45–60 sec',
-        technique: 'Full stretch at bottom, explode up, pause at top.',
-        tempo: '2-1-2',
-        mistakes: 'Bouncing, partial ROM.'
-      }
+      'Pull-ups': { goal:'Strength/Hypertrophy', rest:'2-3 min (strength), 60-90s (hypertrophy)', technique:'Dead hang → pull chest to bar, squeeze lats.', tempo:'2-1-1', mistakes:'Swinging, half reps, elbows flaring.' },
+      'Push-ups': { goal:'Hypertrophy/Endurance', rest:'60-90s', technique:'Body straight, lower chest to floor, elbows ~45°.', tempo:'3-1-1 (hypertrophy)', mistakes:'Sagging hips, flared elbows.' },
+      'Dips': { goal:'Strength/Hypertrophy', rest:'2-3 min', technique:'Shoulders down, lean forward, upper arms parallel.', tempo:'2-1-1', mistakes:'Shrugging, going too deep.' },
+      'Squats': { goal:'Strength/Hypertrophy', rest:'2-3 min heavy, 60-90s volume', technique:'Feet shoulder-width, knees track toes, depth.', tempo:'3-1-1', mistakes:'Knees caving, heels up.' },
+      'Box jumps': { goal:'Power', rest:'2-3 min', technique:'Explosive hip extension, land soft, step down.', tempo:'Max effort', mistakes:'Landing hard, not using arms.' },
+      'Bench Press': { goal:'Strength/Hypertrophy', rest:'3-5 min strength, 60-90s hypertrophy', technique:'Feet flat, arch, touch chest, drive.', tempo:'2-0-1', mistakes:'Bouncing, flared elbows.' }
     };
+    function getTips(name) { return EXERCISE_TIPS[name] || { goal:'General', rest:'60-90s', technique:'Full ROM, controlled.', tempo:'2-0-2', mistakes:'Momentum.' }; }
+    function formatTips(name) { const t=getTips(name); return `<p><strong>Goal:</strong> ${t.goal}</p><p><strong>Rest:</strong> ${t.rest}</p><p><strong>Technique:</strong> ${t.technique}</p><p><strong>Tempo:</strong> ${t.tempo}</p><p><strong>Mistakes:</strong> ${t.mistakes}</p>`; }
 
-    // Generic tips for missing exercises
-    function getExerciseTips(name) {
-      if (EXERCISE_TIPS[name]) return EXERCISE_TIPS[name];
-      // fallback generic
-      return {
-        goal: 'General',
-        rest: '60–90 sec',
-        technique: 'Focus on full range of motion and controlled form.',
-        tempo: '2-0-2',
-        mistakes: 'Using momentum, not engaging target muscle.'
-      };
-    }
-
-    // ========== PROGRAMS (unending) ==========
+    // Programs
     const PROGRAMS = {
       calisthenics: {
-        label: 'Calisthenics',
-        1: { phase:'Foundation', days: {
-          Monday: { title:'Upper Strength', sub:'Compound pull & push.', exercises:[{n:'Pull-ups',s:5,r:'5'},{n:'Push-ups',s:5,r:'15'},{n:'Dips',s:4,r:'8-12'},{n:'Pike push-ups',s:4,r:'10'},{n:'Australian rows',s:4,r:'12'}] },
-          Tuesday: { title:'Lower Strength', sub:'Legs are the engine.', exercises:[{n:'Squats',s:5,r:'20'},{n:'Bulgarian split squats',s:4,r:'12/leg'},{n:'Walking lunges',s:3,r:'20/leg'},{n:'Glute bridges',s:4,r:'20'},{n:'Calf raises',s:4,r:'25'}] },
-          Wednesday: { title:'Conditioning', sub:'Run + circuits.', notes:['Run 30–40 min','3 rounds: 20 push‑ups, 20 squats, 10 pull‑ups, 20 mountain climbers'] },
-          Thursday: { title:'Explosive Power', sub:'Plyometrics & sprints.', exercises:[{n:'Box jumps',s:5,r:'5'},{n:'Jump squats',s:4,r:'10'},{n:'Broad jumps',s:4,r:'8'},{n:'Explosive push-ups',s:5,r:'8'},{n:'Clapping push-ups',s:4,r:'6'}] },
-          Friday: { title:'Upper Hypertrophy', sub:'Volume day.', exercises:[{n:'Pull-ups',s:4,r:'8'},{n:'Chin-ups',s:4,r:'8'},{n:'Dips',s:4,r:'12'},{n:'Push-ups',s:4,r:'20'},{n:'Pike push-ups',s:4,r:'12'}] },
-          Saturday: { title:'Legs + Stamina', sub:'Run & leg circuit.', notes:['20 min run','Squats 4×25','Jump lunges 3×15'] },
-          Sunday: { title:'Recovery', sub:'Mobility & light movement.', notes:['Walk 20–30 min','Stretch hips, hamstrings, lats'] }
-        }},
-        2: { phase:'Build', days: {
-          Monday: { title:'Upper Strength', sub:'Load increases.', exercises:[{n:'Pull-ups',s:5,r:'8'},{n:'Push-ups',s:5,r:'25'},{n:'Dips',s:5,r:'15'},{n:'Pike push-ups',s:4,r:'15'},{n:'Australian rows',s:4,r:'15'}] },
-          Tuesday: { title:'Lower Strength', sub:'Add backpack weight.', exercises:[{n:'Squats (backpack)',s:5,r:'30'},{n:'Bulgarian split squats',s:4,r:'15/leg'},{n:'Walking lunges',s:4,r:'25/leg'},{n:'Glute bridges',s:4,r:'25'},{n:'Calf raises',s:4,r:'30'}] },
-          Wednesday: { title:'Conditioning', sub:'Long run or intervals.', notes:['Option A: 45–60 min run','Option B: 10×100 m sprints'] },
-          Thursday: { title:'Explosive Power', sub:'More volume.', exercises:[{n:'Box jumps',s:5,r:'8'},{n:'Jump squats',s:4,r:'12'},{n:'Broad jumps',s:4,r:'10'},{n:'Explosive push-ups',s:5,r:'10'},{n:'Sprint 10×50 m'}] },
-          Friday: { title:'Weighted Upper', sub:'Backpack loaded.', exercises:[{n:'Weighted pull-ups',s:4,r:'8'},{n:'Weighted dips',s:4,r:'12'},{n:'Push-ups',s:4,r:'25'},{n:'Pike push-ups',s:4,r:'15'},{n:'Chin-ups',s:4,r:'10'}] },
-          Saturday: { title:'Legs + Stamina', sub:'Increase distance.', notes:['25 min run','Squats (backpack) 4×30','Jump lunges 3×15'] },
-          Sunday: { title:'Recovery', sub:'Full rest or 30 min walk.', notes:['Walk','Stretch','Foam rolling'] }
-        }},
-        3: { phase:'Peak', days: {
-          Monday: { title:'Advanced Upper', sub:'Elite calisthenics.', exercises:[{n:'Weighted pull-ups',s:5,r:'5'},{n:'Weighted dips',s:5,r:'8'},{n:'Archer push-ups',s:4,r:'10/side'},{n:'Pseudo planche push-ups',s:4,r:'8'}], notes:['Skill: Handstand practice 10 min'] },
-          Tuesday: { title:'Advanced Lower', sub:'Unilateral strength.', exercises:[{n:'Pistol squat progression',s:4,r:'6-8/leg'},{n:'Jump squats (backpack)',s:4,r:'12'},{n:'Hill sprints',s:6,r:'40 m'},{n:'Broad jumps',s:4,r:'10'}] },
-          Wednesday: { title:'Conditioning Finisher', sub:'5 rounds for time.', notes:['5 rounds: 10 pull-ups, 20 push-ups, 30 squats, 200 m run'] },
-          Thursday: { title:'Power & Skills', sub:'Handstand + explosive.', exercises:[{n:'Handstand practice',s:'10 min'},{n:'Explosive push-ups',s:4,r:'12'},{n:'Box jumps',s:4,r:'10'},{n:'Clapping pull-ups (if able)',s:3,r:'5'}] },
-          Friday: { title:'Max Effort Upper', sub:'All sets to near-failure.', exercises:[{n:'Pull-ups',s:4,r:'MAX'},{n:'Dips',s:4,r:'MAX'},{n:'Push-ups',s:4,r:'MAX'},{n:'Chin-ups',s:3,r:'MAX'}] },
-          Saturday: { title:'Legs & Conditioning', sub:'Long run or intense circuit.', notes:['Option A: 5-10 km run','Option B: 4 rounds: 30 squats, 20 jump lunges, 200 m run'] },
-          Sunday: { title:'Recovery', sub:'Rest is when you grow.', notes:['Walk','Stretch','Mental reset'] }
-        }}
+        label:'Calisthenics', 1:{ phase:'Foundation', days: {
+          Monday:{ title:'Upper Strength', sub:'Compound pull & push.', exercises:[{n:'Pull-ups',s:5,r:'5'},{n:'Push-ups',s:5,r:'15'},{n:'Dips',s:4,r:'8-12'},{n:'Pike push-ups',s:4,r:'10'},{n:'Australian rows',s:4,r:'12'}] },
+          Tuesday:{ title:'Lower Strength', sub:'Legs are the engine.', exercises:[{n:'Squats',s:5,r:'20'},{n:'Bulgarian split squats',s:4,r:'12/leg'},{n:'Walking lunges',s:3,r:'20/leg'},{n:'Glute bridges',s:4,r:'20'},{n:'Calf raises',s:4,r:'25'}] },
+          Wednesday:{ title:'Conditioning', sub:'Run + circuits.', notes:['Run 30-40 min','3 rounds: 20 push-ups, 20 squats, 10 pull-ups, 20 mountain climbers'] },
+          Thursday:{ title:'Explosive Power', sub:'Plyometrics & sprints.', exercises:[{n:'Box jumps',s:5,r:'5'},{n:'Jump squats',s:4,r:'10'},{n:'Broad jumps',s:4,r:'8'},{n:'Explosive push-ups',s:5,r:'8'},{n:'Clapping push-ups',s:4,r:'6'}] },
+          Friday:{ title:'Upper Hypertrophy', sub:'Volume day.', exercises:[{n:'Pull-ups',s:4,r:'8'},{n:'Chin-ups',s:4,r:'8'},{n:'Dips',s:4,r:'12'},{n:'Push-ups',s:4,r:'20'},{n:'Pike push-ups',s:4,r:'12'}] },
+          Saturday:{ title:'Legs + Stamina', sub:'Run & leg circuit.', notes:['20 min run','Squats 4x25','Jump lunges 3x15'] },
+          Sunday:{ title:'Recovery', sub:'Mobility.', notes:['Walk 20-30 min','Stretch'] }
+        }}, 2:{ phase:'Build', days:{} }, 3:{ phase:'Peak', days:{} }
       },
-
       gym: {
-        label: 'Gym',
-        1: { phase:'Foundation', days: {
-          Monday: { title:'Upper Strength', sub:'Heavy compounds.', exercises:[{n:'Bench Press',s:5,r:'5'},{n:'Weighted Pull-ups',s:5,r:'5'},{n:'Overhead Press',s:4,r:'5'},{n:'Barbell Row',s:4,r:'6'},{n:'Face Pulls',s:3,r:'15'},{n:'Hanging Leg Raises',s:3,r:'15'}], notes:['Farmer’s Carry 4×40 m'] },
-          Tuesday: { title:'Lower Strength', sub:'Squat & hinge.', exercises:[{n:'Back Squat',s:5,r:'5'},{n:'Romanian Deadlift',s:4,r:'6'},{n:'Bulgarian Split Squat',s:3,r:'8'},{n:'Standing Calf Raises',s:4,r:'15'},{n:'Ab Wheel',s:3,r:'12'}] },
-          Wednesday: { title:'Conditioning', sub:'Zone 2 run + circuits.', notes:['Run 30–45 min','4 rounds: Battle Rope 30s, Sled Push 20m, Burpees ×10, RowErg 250m'] },
-          Thursday: { title:'Power Day', sub:'Olympic lifts & plyos.', exercises:[{n:'Power Clean',s:5,r:'3'},{n:'Box Jump',s:5,r:'5'},{n:'Broad Jump',s:4,r:'5'},{n:'Med Ball Chest Throw',s:4,r:'8'},{n:'Plyometric Push-ups',s:4,r:'8'}], notes:['Sprints: 6–10 × 50 m'] },
-          Friday: { title:'Hypertrophy (Upper)', sub:'Volume for arms & shoulders.', exercises:[{n:'Incline Dumbbell Press',s:4,r:'10'},{n:'Lat Pulldown',s:4,r:'10'},{n:'Dumbbell Lateral Raise',s:4,r:'15'},{n:'Barbell Curl',s:3,r:'12'},{n:'Triceps Pushdown',s:3,r:'12'},{n:'Push-ups (to near failure)',s:1,r:'MAX'}] },
-          Saturday: { title:'Hypertrophy (Lower)', sub:'Leg volume.', exercises:[{n:'Front Squat',s:4,r:'10'},{n:'Leg Press',s:4,r:'12'},{n:'Walking Lunges',s:3,r:'20'},{n:'Leg Curl',s:3,r:'12'},{n:'Leg Extension',s:3,r:'15'},{n:'Standing Calf Raise',s:4,r:'20'}], notes:['20 min incline treadmill walk'] },
-          Sunday: { title:'Recovery', sub:'Mobility & rest.', notes:['Walk','Stretch','Foam rolling'] }
-        }},
-        2: { phase:'Strength', days: {
-          Monday: { title:'Upper Strength', sub:'Heavier, lower reps.', exercises:[{n:'Bench Press',s:5,r:'4'},{n:'Weighted Pull-ups',s:5,r:'4'},{n:'Overhead Press',s:4,r:'4'},{n:'Barbell Row',s:4,r:'5'},{n:'Face Pulls',s:3,r:'12'},{n:'Hanging Leg Raises',s:3,r:'12'}] },
-          Tuesday: { title:'Lower Strength', sub:'Increase load.', exercises:[{n:'Back Squat',s:5,r:'4'},{n:'Romanian Deadlift',s:4,r:'5'},{n:'Bulgarian Split Squat',s:3,r:'6'},{n:'Standing Calf Raises',s:4,r:'12'},{n:'Ab Wheel',s:3,r:'10'}] },
-          Wednesday: { title:'Conditioning', sub:'Longer intervals.', notes:['Run 40–50 min','4 rounds: Sled Push 30m, Battle Rope 40s, Box Jumps ×10, RowErg 300m'] },
-          Thursday: { title:'Power Day', sub:'Explosive focus.', exercises:[{n:'Power Clean',s:5,r:'3'},{n:'Box Jump',s:5,r:'6'},{n:'Broad Jump',s:4,r:'6'},{n:'Med Ball Chest Throw',s:4,r:'10'},{n:'Clapping Push-ups',s:4,r:'8'}], notes:['Sprints: 8–12 × 60 m'] },
-          Friday: { title:'Hypertrophy (Upper)', sub:'Still volume, moderate weight.', exercises:[{n:'Incline Dumbbell Press',s:4,r:'8-10'},{n:'Lat Pulldown',s:4,r:'8-10'},{n:'Dumbbell Lateral Raise',s:4,r:'12'},{n:'Barbell Curl',s:3,r:'10'},{n:'Triceps Pushdown',s:3,r:'10'},{n:'Push-ups (to near failure)',s:1,r:'MAX'}] },
-          Saturday: { title:'Hypertrophy (Lower)', sub:'Leg volume with heavier accessories.', exercises:[{n:'Front Squat',s:4,r:'8'},{n:'Leg Press',s:4,r:'10'},{n:'Walking Lunges',s:3,r:'16'},{n:'Leg Curl',s:3,r:'10'},{n:'Leg Extension',s:3,r:'12'},{n:'Standing Calf Raise',s:4,r:'18'}], notes:['25 min incline walk'] },
-          Sunday: { title:'Recovery', sub:'Mobility & rest.', notes:['Walk','Stretch','Foam rolling'] }
-        }},
-        3: { phase:'Peak', days: {
-          Monday: { title:'Upper Strength', sub:'Max strength.', exercises:[{n:'Bench Press',s:5,r:'3'},{n:'Weighted Pull-ups',s:5,r:'3'},{n:'Overhead Press',s:4,r:'3'},{n:'Barbell Row',s:4,r:'3'},{n:'Face Pulls',s:3,r:'10'},{n:'Hanging Leg Raises',s:3,r:'10'}] },
-          Tuesday: { title:'Lower Strength', sub:'Peak force.', exercises:[{n:'Back Squat',s:5,r:'3'},{n:'Romanian Deadlift',s:4,r:'3'},{n:'Bulgarian Split Squat',s:3,r:'5'},{n:'Standing Calf Raises',s:4,r:'10'},{n:'Ab Wheel',s:3,r:'8'}] },
-          Wednesday: { title:'Conditioning', sub:'High intensity intervals.', notes:['Run 35–45 min','5 rounds: Sled Push 20m, Battle Rope 30s, Burpees ×12, RowErg 200m'] },
-          Thursday: { title:'Power Day', sub:'Peak power.', exercises:[{n:'Power Clean',s:5,r:'2'},{n:'Box Jump',s:5,r:'5'},{n:'Broad Jump',s:4,r:'4'},{n:'Med Ball Chest Throw',s:4,r:'6'},{n:'Depth Push-ups',s:4,r:'6'}], notes:['Sprints: 6–8 × 40 m (max effort)'] },
-          Friday: { title:'Hypertrophy (Upper)', sub:'Maintenance volume.', exercises:[{n:'Incline Dumbbell Press',s:4,r:'10'},{n:'Lat Pulldown',s:4,r:'10'},{n:'Dumbbell Lateral Raise',s:4,r:'15'},{n:'Barbell Curl',s:3,r:'12'},{n:'Triceps Pushdown',s:3,r:'12'},{n:'Push-ups (to near failure)',s:1,r:'MAX'}] },
-          Saturday: { title:'Hypertrophy (Lower)', sub:'Maintenance leg volume.', exercises:[{n:'Front Squat',s:4,r:'10'},{n:'Leg Press',s:4,r:'12'},{n:'Walking Lunges',s:3,r:'20'},{n:'Leg Curl',s:3,r:'12'},{n:'Leg Extension',s:3,r:'15'},{n:'Standing Calf Raise',s:4,r:'20'}], notes:['20 min incline walk'] },
-          Sunday: { title:'Recovery', sub:'Mobility & rest.', notes:['Walk','Stretch','Foam rolling'] }
-        }}
+        label:'Gym', 1:{ phase:'Foundation', days: {
+          Monday:{ title:'Upper Strength', sub:'Heavy compounds.', exercises:[{n:'Bench Press',s:5,r:'5'},{n:'Weighted Pull-ups',s:5,r:'5'},{n:'Overhead Press',s:4,r:'5'},{n:'Barbell Row',s:4,r:'6'},{n:'Face Pulls',s:3,r:'15'}] },
+          Tuesday:{ title:'Lower Strength', sub:'Squat & hinge.', exercises:[{n:'Back Squat',s:5,r:'5'},{n:'Romanian Deadlift',s:4,r:'6'},{n:'Bulgarian Split Squat',s:3,r:'8'},{n:'Standing Calf Raises',s:4,r:'15'},{n:'Ab Wheel',s:3,r:'12'}] },
+          Wednesday:{ title:'Conditioning', sub:'Run + circuits.', notes:['Run 30-45 min','4 rounds: Battle Rope 30s, Sled Push 20m, Burpees x10, RowErg 250m'] },
+          Thursday:{ title:'Power Day', sub:'Olympic lifts & plyos.', exercises:[{n:'Power Clean',s:5,r:'3'},{n:'Box Jump',s:5,r:'5'},{n:'Broad Jump',s:4,r:'5'},{n:'Med Ball Chest Throw',s:4,r:'8'},{n:'Plyometric Push-ups',s:4,r:'8'}] },
+          Friday:{ title:'Hypertrophy (Upper)', sub:'Volume.', exercises:[{n:'Incline Dumbbell Press',s:4,r:'10'},{n:'Lat Pulldown',s:4,r:'10'},{n:'Dumbbell Lateral Raise',s:4,r:'15'},{n:'Barbell Curl',s:3,r:'12'},{n:'Triceps Pushdown',s:3,r:'12'}] },
+          Saturday:{ title:'Hypertrophy (Lower)', sub:'Leg volume.', exercises:[{n:'Front Squat',s:4,r:'10'},{n:'Leg Press',s:4,r:'12'},{n:'Walking Lunges',s:3,r:'20'},{n:'Leg Curl',s:3,r:'12'},{n:'Leg Extension',s:3,r:'15'},{n:'Standing Calf Raise',s:4,r:'20'}] },
+          Sunday:{ title:'Recovery', sub:'Mobility.', notes:['Walk','Stretch','Foam rolling'] }
+        }}, 2:{ phase:'Strength', days:{} }, 3:{ phase:'Peak', days:{} }
       }
     };
-
     const DAYS = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
-
     function todayStr() { return new Date().toISOString().slice(0,10); }
-    function escapeHtml(s) { return String(s).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
-    function escapeAttr(s) { return escapeHtml(s).replace(/"/g,'&quot;'); }
+    function esc(s) { return String(s).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+    function escA(s) { return esc(s).replace(/"/g,'&quot;'); }
 
-    let state = {
-      program: 'calisthenics',
-      week: 1,
-      dayOffset: 0,
-      settings: { goalWeight: 68, startWeek: 1 },
-      completedWorkouts: [],
-      tempSession: null
-    };
+    // State
+    let state = { program:'calisthenics', week:1, dayOffset:0, settings:{ goalWeight:68, startWeek:1 }, completedWorkouts:[], tempSession:null };
+    function getPhase() { return state.week<=4?1:state.week<=8?2:3; }
+    function getDay() { const idx=(new Date().getDay()+6)%7; return DAYS[(idx+state.dayOffset+700)%7]; }
+    function getWorkout() { const p=PROGRAMS[state.program]; return p[getPhase()].days[getDay()]; }
+    async function loadState() { const s=await get('settings','appState'); if(s?.value) Object.assign(state,s.value); state.week=state.settings.startWeek||1; if(!state.program) state.program='calisthenics'; }
+    async function saveState() { await put('settings',{id:'appState',value:{program:state.program,week:state.week,dayOffset:state.dayOffset,settings:state.settings,completedWorkouts:state.completedWorkouts}}); }
 
-    function getPhaseNumber() {
-      if (state.week <= 4) return 1;
-      if (state.week <= 8) return 2;
-      return 3;
-    }
-    function getPhaseName() { return PROGRAMS[state.program][getPhaseNumber()].phase; }
-    function getCurrentDayName() {
-      const todayIdx = (new Date().getDay() + 6) % 7;
-      return DAYS[(todayIdx + state.dayOffset + 700) % 7];
-    }
-    function getTodayWorkout() {
-      const program = PROGRAMS[state.program];
-      return program[getPhaseNumber()].days[getCurrentDayName()];
+    function buildDraft() {
+      const w=getWorkout(); const exs=(w?.exercises||[]).map(e=>({name:e.n,targetSets:e.s||'',targetReps:e.r||'',logs:Array(Number(e.s)||1).fill({reps:'',weight:'',rest:'',notes:''})}));
+      return {id:uid('s'),date:todayStr(),week:state.week,day:getDay(),phase:PROGRAMS[state.program][getPhase()].phase,title:w?.title||'Session',exercises:exs,energy:'',soreness:'',notes:'',completed:false,program:state.program};
     }
 
-    async function loadState() {
-      const saved = await get('settings', 'appState');
-      if (saved?.value) Object.assign(state, saved.value);
-      state.week = state.settings.startWeek || 1;
-      if (!state.program) state.program = 'calisthenics';
-    }
-    async function saveState() {
-      await put('settings', { id:'appState', value: {
-        program: state.program,
-        week: state.week,
-        dayOffset: state.dayOffset,
-        settings: state.settings,
-        completedWorkouts: state.completedWorkouts
-      }});
-    }
-
-    function buildSessionDraft() {
-      const w = getTodayWorkout();
-      const exs = (w?.exercises || []).map(ex => ({
-        name: ex.n, targetSets: ex.s||'', targetReps: ex.r||'',
-        logs: Array.from({length: Number(ex.s)||1}, () => ({reps:'',weight:'',rest:'',notes:''}))
-      }));
-      return {
-        id: uid('session'), date: todayStr(), week: state.week, day: getCurrentDayName(),
-        phase: getPhaseName(), title: w?.title || 'Session', exercises: exs,
-        energy:'', soreness:'', notes:'', completed:false,
-        program: state.program
-      };
-    }
-
-    function showModal(title, bodyHTML) {
-      document.getElementById('modalTitle').textContent = title;
-      document.getElementById('modalBody').innerHTML = bodyHTML;
-      document.getElementById('infoModal').style.display = 'flex';
-    }
-    function closeModal() {
-      document.getElementById('infoModal').style.display = 'none';
-    }
-
-    // Create tips HTML
-    function formatTips(exerciseName) {
-      const tips = getExerciseTips(exerciseName);
-      return `
-        <p><strong>Goal:</strong> ${tips.goal}</p>
-        <p><strong>Rest:</strong> ${tips.rest}</p>
-        <p><strong>Technique:</strong> ${tips.technique}</p>
-        <p><strong>Tempo:</strong> ${tips.tempo}</p>
-        <p><strong>Common Mistakes:</strong> ${tips.mistakes}</p>
-      `;
-    }
+    function showModal(title, body) { document.getElementById('modalTitle').textContent=title; document.getElementById('modalBody').innerHTML=body; document.getElementById('infoModal').style.display='flex'; }
+    function closeModal() { document.getElementById('infoModal').style.display='none'; }
 
     async function renderAll() {
-      updateProgramBadge();
-      await renderToday();
-      renderSessionEditor();
-      await renderProgress();
-      renderProgram();
-      renderSettings();
-    }
-
-    function updateProgramBadge() {
-      const badge = document.getElementById('programBadge');
-      badge.textContent = state.program.toUpperCase();
-      badge.style.background = state.program === 'calisthenics' ? 'var(--accent)' : '#3b82f6';
+      document.getElementById('programBadge').textContent=state.program.toUpperCase();
+      document.getElementById('programBadge').style.background=state.program==='calisthenics'?'var(--accent)':'#3b82f6';
+      await renderToday(); renderSessionEditor(); await renderProgress(); renderProgram(); renderSettings();
     }
 
     async function renderToday() {
-      const w = getTodayWorkout();
-      document.getElementById('dayNameDisplay').textContent = `Week ${state.week} · ${getCurrentDayName()}`;
-      document.getElementById('todayTitle').textContent = w?.title || 'Session';
-      document.getElementById('todaySubtitle').textContent = w?.sub || '';
-      let html = '';
-      if (w?.exercises) {
-        html += '<div class="list">';
-        w.exercises.forEach(ex => {
-          html += `<div class="log-row">
-            <div style="display:flex; justify-content:space-between; align-items:center;">
-              <div>
-                <div class="exercise-name">${escapeHtml(ex.n)}</div>
-                <div class="exercise-meta">${ex.s} sets × ${ex.r} reps</div>
-              </div>
-              <button class="info-btn" onclick="event.stopPropagation(); showModal('${escapeHtml(ex.n)}', formatTips('${escapeHtml(ex.n)}'))">ⓘ</button>
-            </div>
-          </div>`;
-        });
-        html += '</div>';
-      }
-      if (w?.notes) w.notes.forEach(n => html += `<div class="log-row"><div class="muted">${escapeHtml(n)}</div></div>`);
-      document.getElementById('todayWorkoutPreview').innerHTML = html || '<div class="muted">No workout</div>';
-
-      const water = await get('notes', 'today-water');
-      const wVal = (water?.value || 0).toFixed(2);
-      document.getElementById('waterTotal').textContent = `Total today: ${wVal} L`;
-      document.getElementById('statusText').textContent = `Water: ${wVal} L`;
+      const w=getWorkout();
+      document.getElementById('dayNameDisplay').textContent=`Week ${state.week} · ${getDay()}`;
+      document.getElementById('todayTitle').textContent=w?.title||'Session';
+      document.getElementById('todaySubtitle').textContent=w?.sub||'';
+      let h='';
+      if(w?.exercises){ h+='<div class="list">'; w.exercises.forEach(e=>h+=`<div class="log-row"><div style="display:flex;justify-content:space-between"><div><div class="exercise-name">${esc(e.n)}</div><div class="exercise-meta">${e.s} sets × ${e.r} reps</div></div><button class="info-btn" onclick="event.stopPropagation();showModal('${esc(e.n)}',formatTips('${esc(e.n)}'))">ⓘ</button></div></div>`); h+='</div>'; }
+      if(w?.notes) w.notes.forEach(n=>h+=`<div class="log-row"><div class="muted">${esc(n)}</div></div>`);
+      document.getElementById('todayWorkoutPreview').innerHTML=h||'<div class="muted">No workout</div>';
+      const water=await get('notes','today-water'); const wVal=(water?.value||0).toFixed(2);
+      document.getElementById('waterTotal').textContent=`Total today: ${wVal} L`; document.getElementById('statusText').textContent=`Water: ${wVal} L`;
     }
 
     function renderSessionEditor() {
-      if (!state.tempSession) state.tempSession = buildSessionDraft();
-      const s = state.tempSession;
-      const root = document.getElementById('sessionEditor');
-      root.innerHTML = `
-        <div class="muted">${s.date} · Week ${s.week} · ${s.day} (${state.program})</div>
-        <div class="list">
-          ${s.exercises.map((ex,ei) => `
-            <div class="exercise-card">
-              <div class="exercise-head">
-                <div style="display:flex; gap:6px; align-items:center;">
-                  <div>
-                    <div class="exercise-name">${escapeHtml(ex.name)}</div>
-                    <div class="exercise-meta">Target: ${ex.targetSets} sets × ${ex.targetReps}</div>
-                  </div>
-                  <button class="info-btn" onclick="event.stopPropagation(); showModal('${escapeHtml(ex.name)}', formatTips('${escapeHtml(ex.name)}'))">ⓘ</button>
-                </div>
-                <button class="remove-exercise-btn chip" data-ei="${ei}">✕</button>
-              </div>
-              <div class="sets">
-                ${ex.logs.map((log,li) => `
-                  <div class="set-row">
-                    <input data-e="${ei}" data-l="${li}" data-f="reps" type="text" placeholder="Reps" value="${escapeAttr(log.reps)}">
-                    <input data-e="${ei}" data-l="${li}" data-f="weight" type="text" placeholder="Load (kg)" value="${escapeAttr(log.weight)}">
-                    <input data-e="${ei}" data-l="${li}" data-f="rest" type="text" placeholder="Rest (s)" value="${escapeAttr(log.rest)}">
-                    <input data-e="${ei}" data-l="${li}" data-f="notes" type="text" placeholder="Notes" value="${escapeAttr(log.notes)}">
-                    <button class="remove-set-btn" data-ei="${ei}" data-li="${li}">✕</button>
-                  </div>
-                `).join('')}
-                <button class="add-set-btn chip" data-ei="${ei}">+ Add set</button>
-              </div>
+      if(!state.tempSession) state.tempSession=buildDraft();
+      const s=state.tempSession; const root=document.getElementById('sessionEditor');
+      root.innerHTML=`<div class="muted">${s.date} · Week ${s.week} · ${s.day} (${state.program})</div><div class="list">${s.exercises.map((ex,ei)=>`
+        <div class="exercise-card">
+          <div class="exercise-head">
+            <div style="display:flex; gap:6px; align-items:center;">
+              <div><div class="exercise-name">${esc(ex.name)}</div><div class="exercise-meta">Target: ${ex.targetSets} sets × ${ex.targetReps}</div></div>
+              <button class="info-btn" onclick="event.stopPropagation();showModal('${esc(ex.name)}',formatTips('${esc(ex.name)}'))">ⓘ</button>
             </div>
-          `).join('')}
-        </div>
-        <button id="addExerciseBtn" class="secondary" style="margin-top:10px">+ Add exercise</button>
-      `;
-
-      root.querySelectorAll('input[data-e]').forEach(inp => {
-        inp.addEventListener('input', e => {
-          const ei = +e.target.dataset.e, li = +e.target.dataset.l;
-          state.tempSession.exercises[ei].logs[li][e.target.dataset.f] = e.target.value;
-        });
-      });
-      root.querySelectorAll('.remove-set-btn').forEach(btn => {
-        btn.addEventListener('click', e => {
-          const ei = +e.target.dataset.ei, li = +e.target.dataset.li;
-          state.tempSession.exercises[ei].logs.splice(li,1);
-          renderSessionEditor();
-        });
-      });
-      root.querySelectorAll('.add-set-btn').forEach(btn => {
-        btn.addEventListener('click', e => {
-          const ei = +e.target.dataset.ei;
-          state.tempSession.exercises[ei].logs.push({reps:'',weight:'',rest:'',notes:''});
-          renderSessionEditor();
-        });
-      });
-      root.querySelectorAll('.remove-exercise-btn').forEach(btn => {
-        btn.addEventListener('click', e => {
-          state.tempSession.exercises.splice(+e.target.dataset.ei,1);
-          renderSessionEditor();
-        });
-      });
-      document.getElementById('addExerciseBtn').addEventListener('click', () => {
-        const name = prompt('Exercise name:');
-        if (name) {
-          state.tempSession.exercises.push({name, targetSets:'', targetReps:'', logs:[{reps:'',weight:'',rest:'',notes:''}]});
-          renderSessionEditor();
-        }
-      });
+            <button class="remove-exercise-btn chip" data-ei="${ei}">✕</button>
+          </div>
+          <div class="sets">${ex.logs.map((log,li)=>`
+            <div class="set-row">
+              <input data-e="${ei}" data-l="${li}" data-f="reps" placeholder="Reps" value="${escA(log.reps)}">
+              <input data-e="${ei}" data-l="${li}" data-f="weight" placeholder="Load (kg)" value="${escA(log.weight)}">
+              <input data-e="${ei}" data-l="${li}" data-f="rest" placeholder="Rest (s)" value="${escA(log.rest)}">
+              <input data-e="${ei}" data-l="${li}" data-f="notes" placeholder="Notes" value="${escA(log.notes)}">
+              <button class="remove-set-btn" data-ei="${ei}" data-li="${li}">✕</button>
+            </div>`).join('')}
+            <button class="add-set-btn chip" data-ei="${ei}">+ Add set</button>
+          </div>
+        </div>`).join('')}</div><button id="addExerciseBtn" class="secondary" style="margin-top:10px">+ Add exercise</button>`;
+      root.querySelectorAll('input[data-e]').forEach(inp=>inp.addEventListener('input',e=>{const ei=+e.target.dataset.e,li=+e.target.dataset.l;state.tempSession.exercises[ei].logs[li][e.target.dataset.f]=e.target.value;}));
+      root.querySelectorAll('.remove-set-btn').forEach(btn=>btn.addEventListener('click',e=>{const ei=+e.target.dataset.ei,li=+e.target.dataset.li;state.tempSession.exercises[ei].logs.splice(li,1);renderSessionEditor();}));
+      root.querySelectorAll('.add-set-btn').forEach(btn=>btn.addEventListener('click',e=>{state.tempSession.exercises[+e.target.dataset.ei].logs.push({reps:'',weight:'',rest:'',notes:''});renderSessionEditor();}));
+      root.querySelectorAll('.remove-exercise-btn').forEach(btn=>btn.addEventListener('click',e=>{state.tempSession.exercises.splice(+e.target.dataset.ei,1);renderSessionEditor();}));
+      document.getElementById('addExerciseBtn').addEventListener('click',()=>{const n=prompt('Exercise name:');if(n){state.tempSession.exercises.push({name:n,targetSets:'',targetReps:'',logs:[{reps:'',weight:'',rest:'',notes:''}]});renderSessionEditor();}});
     }
 
-    // ... (rest of renderProgress, renderProgram, etc. unchanged from previous version, I'm keeping them for brevity but they are identical to the last working version)
-    // For the sake of space, I'll include the full code block in the final output below.
-    // Actually I need to include the full renderProgress etc. to be complete. Let me write them.
     async function renderProgress() {
-      const sessions = await getAll('sessions');
-      const weights = await getAll('weights');
-      const nutrition = await getAll('nutrition');
-      const curW = weights.at(-1)?.value ?? '—';
-      const totCal = nutrition.reduce((s,n)=>s+(+n.calories||0),0);
-      const totPro = nutrition.reduce((s,n)=>s+(+n.protein||0),0);
-      document.getElementById('progressStats').innerHTML = `
-        <div class="stat"><div class="stat-value">${sessions.length}</div><div class="stat-label">Sessions</div></div>
-        <div class="stat"><div class="stat-value">${curW}</div><div class="stat-label">Current kg</div></div>
-        <div class="stat"><div class="stat-value">${totCal}</div><div class="stat-label">Calories</div></div>
-        <div class="stat"><div class="stat-value">${totPro}g</div><div class="stat-label">Protein</div></div>`;
-
-      const prs = computePRs(sessions);
-      document.getElementById('prList').innerHTML = prs.length ? prs.map(p => `
-        <div class="log-row"><div><span class="exercise-name">🏆 ${escapeHtml(p.exercise)}</span><span class="muted"> — ${p.type}: ${p.value} (Week ${p.week})</span></div></div>
-      `).join('') : '<div class="muted">Complete sets to see PRs.</div>';
-
-      document.getElementById('exerciseHistory').innerHTML = sessions.slice(-10).reverse().map(s => `
-        <div class="history-item"><div><div class="exercise-name">${escapeHtml(s.title)}</div><div class="muted">${s.date} · ${s.day} · Week ${s.week} · ${s.program||''}</div></div></div>
-      `).join('') || '<div class="muted">No sessions yet.</div>';
-
-      document.getElementById('weightList').innerHTML = weights.slice(-5).reverse().map(w => `
-        <div class="weight-item"><div>${w.date}</div><div><strong>${w.value}</strong> kg</div></div>
-      `).join('') || '<div class="muted">No weigh-ins yet.</div>';
-
-      drawWeightChart(weights);
+      const sessions=await getAll('sessions'), weights=await getAll('weights'), nutrition=await getAll('nutrition');
+      const curW=weights.at(-1)?.value??'—', totCal=nutrition.reduce((s,n)=>s+(+n.calories||0),0), totPro=nutrition.reduce((s,n)=>s+(+n.protein||0),0);
+      document.getElementById('progressStats').innerHTML=`<div class="stat"><div class="stat-value">${sessions.length}</div><div class="stat-label">Sessions</div></div><div class="stat"><div class="stat-value">${curW}</div><div class="stat-label">Current kg</div></div><div class="stat"><div class="stat-value">${totCal}</div><div class="stat-label">Calories</div></div><div class="stat"><div class="stat-value">${totPro}g</div><div class="stat-label">Protein</div></div>`;
+      const prs=[]; const best={};
+      sessions.forEach(s=>{s.exercises?.forEach(ex=>{ex.logs?.forEach(log=>{const r=+log.reps,w=+log.weight;if(!best[ex.name])best[ex.name]={w:0,r:0,wk:0};if(w>best[ex.name].w){best[ex.name].w=w;best[ex.name].wk=s.week;}if(r>best[ex.name].r){best[ex.name].r=r;best[ex.name].wk=s.week;}})});});
+      Object.entries(best).forEach(([n,d])=>{if(d.w)prs.push({exercise:n,type:'Max weight',value:`${d.w}kg`,week:d.wk});if(d.r)prs.push({exercise:n,type:'Max reps',value:d.r,week:d.wk});});
+      document.getElementById('prList').innerHTML=prs.length?prs.map(p=>`<div class="log-row"><span class="exercise-name">🏆 ${esc(p.exercise)}</span><span class="muted"> — ${p.type}: ${p.value} (Week ${p.week})</span></div>`).join(''):'<div class="muted">Complete sets to see PRs.</div>';
+      document.getElementById('exerciseHistory').innerHTML=sessions.slice(-10).reverse().map(s=>`<div class="history-item"><div><div class="exercise-name">${esc(s.title)}</div><div class="muted">${s.date} · ${s.day} · Week ${s.week}</div></div></div>`).join('')||'<div class="muted">No sessions.</div>';
+      document.getElementById('weightList').innerHTML=weights.slice(-5).reverse().map(w=>`<div class="weight-item"><div>${w.date}</div><div><strong>${w.value}</strong> kg</div></div>`).join('')||'<div class="muted">No weigh-ins.</div>';
+      drawChart(weights);
     }
-
-    function computePRs(sessions) {
-      const best = {};
-      sessions.forEach(s => {
-        s.exercises?.forEach(ex => {
-          ex.logs?.forEach(log => {
-            const reps = +log.reps, weight = +log.weight;
-            if (!best[ex.name]) best[ex.name] = { maxW:0, maxR:0, week:0 };
-            if (weight > best[ex.name].maxW) { best[ex.name].maxW = weight; best[ex.name].week = s.week; }
-            if (reps > best[ex.name].maxR) { best[ex.name].maxR = reps; best[ex.name].week = s.week; }
-          });
-        });
-      });
-      const out = [];
-      Object.entries(best).forEach(([name,d]) => {
-        if (d.maxW) out.push({ exercise:name, type:'Max weight', value:`${d.maxW}kg`, week:d.week });
-        if (d.maxR) out.push({ exercise:name, type:'Max reps', value:d.maxR, week:d.week });
-      });
-      return out;
-    }
-
-    function drawWeightChart(weights) {
-      const canvas = document.getElementById('weightChartCanvas');
-      if (!canvas || weights.length < 2) return;
-      const ctx = canvas.getContext('2d');
-      const W = canvas.parentElement.clientWidth - 32;
-      canvas.width = W * devicePixelRatio;
-      canvas.height = 200 * devicePixelRatio;
-      canvas.style.width = W + 'px';
-      canvas.style.height = '200px';
-      ctx.scale(devicePixelRatio, devicePixelRatio);
-      ctx.clearRect(0,0,W,200);
-      const vals = weights.map(w=>w.value);
-      const min = Math.min(...vals)-1, max = Math.max(...vals)+1;
-      const toX = i => 30 + (i/(weights.length-1))*(W-50);
-      const toY = v => 180 - ((v-min)/(max-min))*160;
-      ctx.beginPath();
-      ctx.strokeStyle = '#ff6b1a'; ctx.lineWidth = 2;
-      weights.forEach((w,i) => i===0 ? ctx.moveTo(toX(i),toY(w.value)) : ctx.lineTo(toX(i),toY(w.value)));
-      ctx.stroke();
-      ctx.fillStyle = '#ff6b1a';
-      weights.forEach((w,i) => { ctx.beginPath(); ctx.arc(toX(i),toY(w.value),4,0,Math.PI*2); ctx.fill(); });
+    function drawChart(weights) {
+      const canvas=document.getElementById('weightChartCanvas'); if(!canvas||weights.length<2)return;
+      const ctx=canvas.getContext('2d'), W=canvas.parentElement.clientWidth-32;
+      canvas.width=W*devicePixelRatio; canvas.height=200*devicePixelRatio;
+      canvas.style.width=W+'px'; canvas.style.height='200px'; ctx.scale(devicePixelRatio,devicePixelRatio);
+      ctx.clearRect(0,0,W,200); const vals=weights.map(w=>w.value), min=Math.min(...vals)-1, max=Math.max(...vals)+1;
+      const toX=i=>30+(i/(weights.length-1))*(W-50), toY=v=>180-((v-min)/(max-min))*160;
+      ctx.beginPath(); ctx.strokeStyle='#ff6b1a'; ctx.lineWidth=2;
+      weights.forEach((w,i)=>i===0?ctx.moveTo(toX(i),toY(w.value)):ctx.lineTo(toX(i),toY(w.value))); ctx.stroke();
+      ctx.fillStyle='#ff6b1a'; weights.forEach((w,i)=>{ctx.beginPath();ctx.arc(toX(i),toY(w.value),4,0,Math.PI*2);ctx.fill();});
     }
 
     function renderProgram() {
-      const phaseNum = getPhaseNumber();
-      const program = PROGRAMS[state.program];
-      const phase = program[phaseNum];
-      let html = `<div class="muted">${program.label} — ${phase.phase} (Week ${state.week})</div>`;
-      DAYS.forEach(day => {
-        const d = phase.days[day];
-        if (!d) return;
-        html += `<div class="program-day"><div class="exercise-name">${day} — ${escapeHtml(d.title)}</div><div class="muted">${escapeHtml(d.sub||'')}</div>`;
-        if (d.exercises) {
-          d.exercises.forEach(ex => html += `<div class="muted" style="margin-left:12px">• ${escapeHtml(ex.n)} ${ex.s}×${ex.r}</div>`);
-        }
-        html += '</div>';
-      });
-      document.getElementById('programView').innerHTML = html;
+      const p=PROGRAMS[state.program], ph=p[getPhase()]; let h=`<div class="muted">${p.label} — ${ph.phase} (Week ${state.week})</div>`;
+      DAYS.forEach(d=>{const w=ph.days[d];if(!w)return;h+=`<div class="program-day"><div class="exercise-name">${d} — ${esc(w.title)}</div><div class="muted">${esc(w.sub||'')}</div>`;if(w.exercises)w.exercises.forEach(e=>h+=`<div class="muted" style="margin-left:12px">• ${esc(e.n)} ${e.s}×${e.r}</div>`);h+='</div>';});
+      document.getElementById('programView').innerHTML=h;
     }
+    function renderSettings() { document.getElementById('programSelect').value=state.program; document.getElementById('startWeekInput').value=state.settings.startWeek; document.getElementById('goalWeightInput').value=state.settings.goalWeight; }
 
-    function renderSettings() {
-      document.getElementById('programSelect').value = state.program;
-      document.getElementById('startWeekInput').value = state.settings.startWeek;
-      document.getElementById('goalWeightInput').value = state.settings.goalWeight;
-    }
+    // Timer (wall-clock)
+    let timerInterval=null, timerEnd=null, timerEl=null;
+    function startTimer(sec, display) { stopTimer(); if('Notification' in window && Notification.permission==='default') Notification.requestPermission(); timerEl=display; timerEnd=Date.now()+sec*1000; tick(); timerInterval=setInterval(tick,200); }
+    function tick() { if(!timerEnd||!timerEl)return; const r=Math.max(0,Math.ceil((timerEnd-Date.now())/1000)); const m=Math.floor(r/60), s=r%60; timerEl.textContent=`${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`; if(r<=0){stopTimer(); if('Notification' in window && Notification.permission==='granted') new Notification('FORGE Timer',{body:'Rest time is up!'});} }
+    function stopTimer() { if(timerInterval){clearInterval(timerInterval);timerInterval=null;} timerEnd=null; if(timerEl){timerEl.textContent='00:00';timerEl=null;} }
+    document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='visible' && timerEnd){tick(); if(!timerInterval) timerInterval=setInterval(tick,200);} });
 
-    let timerInterval = null, timerEndTime = null, timerDisplayEl = null;
-    function requestNotificationPermission() {
-      if ('Notification' in window && Notification.permission === 'default') Notification.requestPermission();
-    }
-    function startTimer(seconds, displayEl) {
-      stopTimer();
-      requestNotificationPermission();
-      timerDisplayEl = displayEl;
-      timerEndTime = Date.now() + seconds * 1000;
-      updateTimerDisplay();
-      timerInterval = setInterval(updateTimerDisplay, 200);
-    }
-    function updateTimerDisplay() {
-      if (!timerEndTime || !timerDisplayEl) return;
-      const remaining = Math.max(0, Math.ceil((timerEndTime - Date.now()) / 1000));
-      const mins = Math.floor(remaining / 60), secs = remaining % 60;
-      timerDisplayEl.textContent = `${String(mins).padStart(2,'0')}:${String(secs).padStart(2,'0')}`;
-      if (remaining <= 0) {
-        stopTimer();
-        if ('Notification' in window && Notification.permission === 'granted') new Notification('FORGE Timer', { body: 'Rest time is up!' });
-      }
-    }
-    function stopTimer() {
-      if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
-      timerEndTime = null;
-      if (timerDisplayEl) { timerDisplayEl.textContent = '00:00'; timerDisplayEl = null; }
-    }
-    document.addEventListener('visibilitychange', () => {
-      if (document.visibilityState === 'visible' && timerEndTime) {
-        updateTimerDisplay();
-        if (!timerInterval) timerInterval = setInterval(updateTimerDisplay, 200);
-      }
-    });
-
-    async function addWater(amt) {
-      const item = await get('notes','today-water');
-      await put('notes', { id:'today-water', value: (item?.value||0)+amt });
-      await renderToday();
-    }
+    async function addWater(amt) { const i=await get('notes','today-water'); await put('notes',{id:'today-water',value:(i?.value||0)+amt}); await renderToday(); }
     async function saveSession() {
-      if (!state.tempSession) return;
-      state.tempSession.energy = document.getElementById('sessionEnergy').value;
-      state.tempSession.soreness = document.getElementById('sessionSoreness').value;
-      state.tempSession.notes = document.getElementById('sessionNotes').value;
-      state.tempSession.completed = true;
-      await put('sessions', state.tempSession);
-      state.completedWorkouts.push({ id:state.tempSession.id, date:state.tempSession.date, day:state.tempSession.day, week:state.tempSession.week });
-      state.tempSession = buildSessionDraft();
-      await saveState();
-      await renderAll();
-      document.getElementById('prBadge').style.display = 'block';
-      setTimeout(() => document.getElementById('prBadge').style.display = 'none', 3000);
+      if(!state.tempSession) return; state.tempSession.energy=document.getElementById('sessionEnergy').value; state.tempSession.soreness=document.getElementById('sessionSoreness').value; state.tempSession.notes=document.getElementById('sessionNotes').value; state.tempSession.completed=true;
+      await put('sessions',state.tempSession); state.completedWorkouts.push({id:state.tempSession.id,date:state.tempSession.date,day:state.tempSession.day,week:state.tempSession.week}); state.tempSession=buildDraft(); await saveState(); await renderAll();
+      document.getElementById('prBadge').style.display='block'; setTimeout(()=>document.getElementById('prBadge').style.display='none',3000);
     }
-    async function logWeight() {
-      const input = document.getElementById('weightInput');
-      const val = parseFloat(input.value);
-      if (!val || val < 30 || val > 200) return;
-      await put('weights', { id: uid('w'), date: todayStr(), value: val });
-      input.value = '';
-      await renderProgress();
-    }
-    async function exportData() {
-      const data = {
-        settings: await getAll('settings'),
-        sessions: await getAll('sessions'),
-        weights: await getAll('weights'),
-        nutrition: await getAll('nutrition'),
-        notes: await getAll('notes'),
-        exportedAt: new Date().toISOString()
-      };
-      const blob = new Blob([JSON.stringify(data,null,2)], {type:'application/json'});
-      const a = document.createElement('a');
-      a.href = URL.createObjectURL(blob);
-      a.download = `forge-backup-${todayStr()}.json`;
-      a.click();
-    }
-    async function importData(e) {
-      const file = e.target.files?.[0];
-      if (!file) return;
-      const text = await file.text();
-      const data = JSON.parse(text);
-      for (const row of data.settings||[]) await put('settings', row);
-      for (const row of data.sessions||[]) await put('sessions', row);
-      for (const row of data.weights||[]) await put('weights', row);
-      for (const row of data.nutrition||[]) await put('nutrition', row);
-      for (const row of data.notes||[]) await put('notes', row);
-      await loadState();
-      await renderAll();
-    }
-    async function saveSettings() {
-      state.program = document.getElementById('programSelect').value;
-      state.settings.startWeek = +document.getElementById('startWeekInput').value || 1;
-      state.settings.goalWeight = +document.getElementById('goalWeightInput').value || 68;
-      state.week = state.settings.startWeek;
-      await saveState();
-      await renderAll();
-    }
-    function showPage(page) {
-      document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.page === page));
-      document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-      document.getElementById('page-' + page).classList.add('active');
-      if (page === 'log') renderSessionEditor();
-      if (page === 'progress') renderProgress();
-    }
+    async function logWeight() { const v=+document.getElementById('weightInput').value; if(!v||v<30||v>200)return; await put('weights',{id:uid('w'),date:todayStr(),value:v}); document.getElementById('weightInput').value=''; await renderProgress(); }
+    async function exportData() { const data={settings:await getAll('settings'),sessions:await getAll('sessions'),weights:await getAll('weights'),nutrition:await getAll('nutrition'),notes:await getAll('notes'),exportedAt:new Date().toISOString()}; const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=`forge-backup-${todayStr()}.json`; a.click(); }
+    async function importData(e) { const file=e.target.files?.[0]; if(!file)return; const text=await file.text(); const data=JSON.parse(text); for(const row of data.settings||[]) await put('settings',row); for(const row of data.sessions||[]) await put('sessions',row); for(const row of data.weights||[]) await put('weights',row); for(const row of data.nutrition||[]) await put('nutrition',row); for(const row of data.notes||[]) await put('notes',row); await loadState(); await renderAll(); }
+    async function saveSettings() { state.program=document.getElementById('programSelect').value; state.settings.startWeek=+document.getElementById('startWeekInput').value||1; state.settings.goalWeight=+document.getElementById('goalWeightInput').value||68; state.week=state.settings.startWeek; await saveState(); await renderAll(); }
+    function showPage(p) { document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active',t.dataset.page===p)); document.querySelectorAll('.page').forEach(pg=>pg.classList.remove('active')); document.getElementById('page-'+p).classList.add('active'); if(p==='log') renderSessionEditor(); if(p==='progress') renderProgress(); }
 
-    // Training guide content
-    const trainingGuideHTML = `
-      <p><strong>Strength Days (Mon/Tue):</strong> Heavy loads, 3-5 min rest, explosive intent but controlled. Focus on perfect form. Last set should be challenging.</p>
-      <p><strong>Power Days (Thu):</strong> Maximum speed, 2-3 min rest. Stop when speed drops. Emphasize triple extension and soft landings.</p>
-      <p><strong>Hypertrophy Days (Fri/Sat):</strong> Moderate weight, 60-90 sec rest. Slow eccentric (3s), squeeze the muscle. Chase the pump.</p>
-      <p><strong>Conditioning (Wed):</strong> Keep rest short (30-60s) or as prescribed. Aim for steady breathing, not maximal exhaustion.</p>
-      <p><strong>Endurance runs:</strong> Zone 2 (conversational pace), 30-60 min. Build aerobic base.</p>
-      <p><strong>General tip:</strong> Always warm up with lighter sets before working sets. Log your weights/reps to track progress.</p>
-    `;
+    const trainingGuideHTML = `<p><strong>Strength:</strong> Heavy, 3-5 min rest, perfect form.</p><p><strong>Power:</strong> Max speed, 2-3 min rest, stop when speed drops.</p><p><strong>Hypertrophy:</strong> Moderate, 60-90s rest, slow eccentric.</p><p><strong>Conditioning:</strong> Short rest, steady breathing.</p>`;
 
     function bindAll() {
       log('Binding events...');
-      document.querySelectorAll('.tab').forEach(btn => btn.addEventListener('click', () => showPage(btn.dataset.page)));
-
-      document.getElementById('startWorkoutBtn').addEventListener('click', () => { state.tempSession = buildSessionDraft(); renderSessionEditor(); showPage('log'); });
-      document.getElementById('quickCompleteBtn').addEventListener('click', async () => {
-        const d = buildSessionDraft(); d.completed = true;
-        await put('sessions', d);
-        state.completedWorkouts.push({ id:d.id, date:d.date, day:d.day, week:d.week });
-        await saveState(); await renderAll();
-      });
-      document.getElementById('prevDayBtn').addEventListener('click', () => { state.dayOffset--; saveState(); renderAll(); });
-      document.getElementById('nextDayBtn').addEventListener('click', () => { state.dayOffset++; saveState(); renderAll(); });
-      document.getElementById('todayBtn').addEventListener('click', () => { state.dayOffset = 0; saveState(); renderAll(); });
-
-      document.querySelectorAll('[data-water]').forEach(b => b.addEventListener('click', () => addWater(+b.dataset.water)));
-      document.getElementById('addCustomWaterBtn').addEventListener('click', () => {
-        const amt = +document.getElementById('customWater').value || 0;
-        if (amt) addWater(amt);
-      });
-
-      const setupTimer = (displayId, customId, startId, stopId) => {
-        const display = document.getElementById(displayId);
-        document.querySelectorAll('[data-timer]').forEach(b => b.addEventListener('click', () => startTimer(+b.dataset.timer, display)));
-        document.getElementById(startId).addEventListener('click', () => {
-          const sec = +document.getElementById(customId).value || 0;
-          if (sec) startTimer(sec, display);
-        });
-        document.getElementById(stopId).addEventListener('click', stopTimer);
-      };
-      setupTimer('timerDisplay', 'customTimerSec', 'startCustomTimerBtn', 'stopTimerBtn');
-      setupTimer('timerDisplay2', 'customTimerSec2', 'startCustomTimerBtn2', 'stopTimerBtn2');
-
-      document.getElementById('saveSessionBtn').addEventListener('click', saveSession);
-      document.getElementById('logWeightBtn').addEventListener('click', logWeight);
-      document.getElementById('exportBtn').addEventListener('click', exportData);
-      document.getElementById('importInput').addEventListener('change', importData);
-      document.getElementById('saveSettingsBtn').addEventListener('click', saveSettings);
-      document.getElementById('advanceWeekBtn').addEventListener('click', () => { state.week++; saveState(); renderAll(); });
-      document.getElementById('trainingGuideBtn').addEventListener('click', () => showModal('Training Guide', trainingGuideHTML));
-
+      document.querySelectorAll('.tab').forEach(btn=>btn.addEventListener('click',()=>showPage(btn.dataset.page)));
+      document.getElementById('startWorkoutBtn').addEventListener('click',()=>{state.tempSession=buildDraft();renderSessionEditor();showPage('log');});
+      document.getElementById('quickCompleteBtn').addEventListener('click',async()=>{const d=buildDraft();d.completed=true;await put('sessions',d);state.completedWorkouts.push({id:d.id,date:d.date,day:d.day,week:d.week});await saveState();await renderAll();});
+      document.getElementById('prevDayBtn').addEventListener('click',()=>{state.dayOffset--;saveState();renderAll();});
+      document.getElementById('nextDayBtn').addEventListener('click',()=>{state.dayOffset++;saveState();renderAll();});
+      document.getElementById('todayBtn').addEventListener('click',()=>{state.dayOffset=0;saveState();renderAll();});
+      document.querySelectorAll('[data-water]').forEach(b=>b.addEventListener('click',()=>addWater(+b.dataset.water)));
+      document.getElementById('addCustomWaterBtn').addEventListener('click',()=>{const a=+document.getElementById('customWater').value||0;if(a)addWater(a);});
+      const setupTimer=(dispId,custId,startId,stopId)=>{ const disp=document.getElementById(dispId); document.querySelectorAll('[data-timer]').forEach(b=>b.addEventListener('click',()=>startTimer(+b.dataset.timer,disp))); document.getElementById(startId).addEventListener('click',()=>{const s=+document.getElementById(custId).value||0;if(s)startTimer(s,disp);}); document.getElementById(stopId).addEventListener('click',stopTimer); };
+      setupTimer('timerDisplay','customTimerSec','startCustomTimerBtn','stopTimerBtn');
+      setupTimer('timerDisplay2','customTimerSec2','startCustomTimerBtn2','stopTimerBtn2');
+      document.getElementById('saveSessionBtn').addEventListener('click',saveSession);
+      document.getElementById('logWeightBtn').addEventListener('click',logWeight);
+      document.getElementById('exportBtn').addEventListener('click',exportData);
+      document.getElementById('importInput').addEventListener('change',importData);
+      document.getElementById('saveSettingsBtn').addEventListener('click',saveSettings);
+      document.getElementById('advanceWeekBtn').addEventListener('click',()=>{state.week++;saveState();renderAll();});
+      document.getElementById('trainingGuideBtn').addEventListener('click',()=>showModal('Training Guide',trainingGuideHTML));
       log('Events bound');
     }
 
-    if ('serviceWorker' in navigator) {
-      const swCode = `const CACHE='forge-unending';self.addEventListener('install',e=>{e.waitUntil(caches.open(CACHE).then(c=>c.addAll(['./'])).then(()=>self.skipWaiting()))});self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(k=>Promise.all(k.map(k=>k!==CACHE?caches.delete(k):null))).then(()=>self.clients.claim()))});self.addEventListener('fetch',e=>{if(e.request.method!=='GET')return;e.respondWith(caches.match(e.request).then(c=>c||fetch(e.request).then(r=>{if(r.ok){const clone=r.clone();caches.open(CACHE).then(c=>c.put(e.request,clone));}return r;}).catch(()=>caches.match('./index.html'))))});`;
-      const blob = new Blob([swCode], {type:'application/javascript'});
-      navigator.serviceWorker.register(URL.createObjectURL(blob)).catch(() => {});
+    if('serviceWorker' in navigator) {
+      const swCode=`const CACHE='forge-vfinal';self.addEventListener('install',e=>{e.waitUntil(caches.open(CACHE).then(c=>c.addAll(['./'])).then(()=>self.skipWaiting()))});self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(k=>Promise.all(k.map(k=>k!==CACHE?caches.delete(k):null))).then(()=>self.clients.claim()))});self.addEventListener('fetch',e=>{if(e.request.method!=='GET')return;e.respondWith(caches.match(e.request).then(c=>c||fetch(e.request).then(r=>{if(r.ok){const clone=r.clone();caches.open(CACHE).then(c=>c.put(e.request,clone));}return r;}).catch(()=>caches.match('./index.html'))))});`;
+      const blob=new Blob([swCode],{type:'application/javascript'});
+      navigator.serviceWorker.register(URL.createObjectURL(blob)).catch(()=>{});
     }
 
-    (async () => {
+    (async()=>{
       log('Init started');
       await loadState();
       await renderAll();
       bindAll();
       log('✅ App fully loaded');
-      setTimeout(() => {
-        const panel = document.getElementById('debugPanel');
-        if (panel) panel.style.display = 'none';
-      }, 3000);
-    })().catch(err => {
-      log('❌ Fatal error: ' + err.message);
-    });
+      setTimeout(()=>{const panel=document.getElementById('debugPanel'); if(panel) panel.style.display='none';},3000);
+    })().catch(err=>log('❌ Fatal error: '+err.message));
   </script>
 </body>
 </html>

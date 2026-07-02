@@ -83,6 +83,17 @@
     .exercise-head { display: flex; justify-content: space-between; gap: 10px; align-items: center; margin-bottom: 10px; }
     .exercise-name { font-weight: 700; }
     .exercise-meta { color: var(--muted); font-size: 0.85rem; }
+    .exercise-cue {
+      font-size: 0.78rem; color: var(--muted); margin-top: 6px; padding: 8px 10px;
+      background: var(--bg); border-radius: 8px; border: 1px solid var(--border);
+      display: none;
+    }
+    .exercise-cue.open { display: block; }
+    .cue-toggle {
+      background: none; border: 1px solid var(--border); color: var(--accent);
+      border-radius: 8px; padding: 4px 10px; font-size: 0.7rem; font-weight: 600;
+      cursor: pointer; white-space: nowrap; margin-left: 8px;
+    }
     .sets { display: grid; gap: 8px; }
     .set-row { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr 40px; gap: 8px; align-items: center; }
     .set-row input { padding: 10px; font-size: 16px; }
@@ -106,6 +117,10 @@
     .program-badge {
       background: var(--accent); color: white; padding: 4px 10px; border-radius: 20px;
       font-size: 0.7rem; font-weight: 700; text-transform: uppercase; margin-left: 8px;
+    }
+    .focus-box {
+      background: var(--surface); border: 1px solid var(--accent); border-radius: 10px;
+      padding: 10px 12px; margin-bottom: 12px; font-size: 0.85rem; color: var(--accent);
     }
     .debug-panel { background: #1a0000; border: 1px solid red; padding: 10px; border-radius: 12px; margin-bottom: 14px; font-size: 0.75rem; }
     .debug-panel pre { color: #ff4444; white-space: pre-wrap; max-height: 120px; overflow: auto; }
@@ -163,6 +178,7 @@
           </div>
           <h1 id="todayTitle">Upper Strength</h1>
           <p id="todaySubtitle">Compound pull and push — build your base.</p>
+          <div class="focus-box" id="dayFocus"></div>
           <button id="startWorkoutBtn" class="primary">Start workout</button>
           <button id="quickCompleteBtn" class="secondary">Mark complete</button>
         </div>
@@ -263,17 +279,11 @@
   </div>
 
   <script>
-    // ========== DEBUG LOG ==========
     const debugEl = document.getElementById('debugOutput');
-    function log(msg) {
-      const line = new Date().toLocaleTimeString() + ' ' + msg;
-      debugEl.textContent += '\n' + line;
-      console.log(msg);
-    }
+    function log(msg) { const line = new Date().toLocaleTimeString() + ' ' + msg; debugEl.textContent += '\n' + line; console.log(msg); }
     log('Script started');
 
-    // ========== IndexedDB ==========
-    const DB_NAME = 'forge-db-unending';
+    const DB_NAME = 'forge-db-cues';
     let dbPromise;
     function openDB() {
       if (dbPromise) return dbPromise;
@@ -318,70 +328,236 @@
       });
     }
     function uid(p = 'id') { return p + '_' + crypto.randomUUID(); }
-
     log('DB ready');
 
-    // ========== PROGRAMS (unending) ==========
+    // ========== ENRICHED PROGRAMS WITH CUES & FOCUS ==========
     const PROGRAMS = {
       calisthenics: {
         label: 'Calisthenics',
         1: { phase:'Foundation', days: {
-          Monday: { title:'Upper Strength', sub:'Compound pull & push.', exercises:[{n:'Pull-ups',s:5,r:'5'},{n:'Push-ups',s:5,r:'15'},{n:'Dips',s:4,r:'8-12'},{n:'Pike push-ups',s:4,r:'10'},{n:'Australian rows',s:4,r:'12'}] },
-          Tuesday: { title:'Lower Strength', sub:'Legs are the engine.', exercises:[{n:'Squats',s:5,r:'20'},{n:'Bulgarian split squats',s:4,r:'12/leg'},{n:'Walking lunges',s:3,r:'20/leg'},{n:'Glute bridges',s:4,r:'20'},{n:'Calf raises',s:4,r:'25'}] },
-          Wednesday: { title:'Conditioning', sub:'Run + circuits.', notes:['Run 30–40 min','3 rounds: 20 push‑ups, 20 squats, 10 pull‑ups, 20 mountain climbers'] },
-          Thursday: { title:'Explosive Power', sub:'Plyometrics & sprints.', exercises:[{n:'Box jumps',s:5,r:'5'},{n:'Jump squats',s:4,r:'10'},{n:'Broad jumps',s:4,r:'8'},{n:'Explosive push-ups',s:5,r:'8'},{n:'Clapping push-ups',s:4,r:'6'}] },
-          Friday: { title:'Upper Hypertrophy', sub:'Volume day.', exercises:[{n:'Pull-ups',s:4,r:'8'},{n:'Chin-ups',s:4,r:'8'},{n:'Dips',s:4,r:'12'},{n:'Push-ups',s:4,r:'20'},{n:'Pike push-ups',s:4,r:'12'}] },
-          Saturday: { title:'Legs + Stamina', sub:'Run & leg circuit.', notes:['20 min run','Squats 4×25','Jump lunges 3×15'] },
-          Sunday: { title:'Recovery', sub:'Mobility & light movement.', notes:['Walk 20–30 min','Stretch hips, hamstrings, lats'] }
+          Monday: { title:'Upper Strength', sub:'Compound pull & push.', focus:'Strength: Control each rep, full range of motion, 2–3 min rest between sets.', exercises:[
+            {n:'Pull-ups',s:5,r:'5',cue:'Dead hang each rep, pull explosively, lower slowly (2-3s). Keep body straight.'},
+            {n:'Push-ups',s:5,r:'15',cue:'Full range: chest to floor, elbows 45°, push explosively.'},
+            {n:'Dips',s:4,r:'8-12',cue:'Keep shoulders down, lean slightly forward for chest, control descent.'},
+            {n:'Pike push-ups',s:4,r:'10',cue:'Hips high, head between arms, lower forehead toward floor.'},
+            {n:'Australian rows',s:4,r:'12',cue:'Keep body straight, pull chest to bar, squeeze shoulder blades.'}
+          ]},
+          Tuesday: { title:'Lower Strength', sub:'Legs are the engine.', focus:'Strength: Deep range, controlled lowering, explosive up.', exercises:[
+            {n:'Squats',s:5,r:'20',cue:'Feet shoulder-width, chest up, break parallel, drive through heels.'},
+            {n:'Bulgarian split squats',s:4,r:'12/leg',cue:'Back foot elevated, front knee tracks over toe, upright torso.'},
+            {n:'Walking lunges',s:3,r:'20/leg',cue:'Long step, back knee nearly touches ground, push off front foot.'},
+            {n:'Glute bridges',s:4,r:'20',cue:'Squeeze glutes at top, hold 1 sec, lower slowly.'},
+            {n:'Calf raises',s:4,r:'25',cue:'Full stretch at bottom, explosive up, pause at top.'}
+          ]},
+          Wednesday: { title:'Conditioning', sub:'Run + circuits.', focus:'Endurance: Steady pace, minimize rest between rounds.', notes:['Run 30–40 min','3 rounds: 20 push‑ups, 20 squats, 10 pull‑ups, 20 mountain climbers'] },
+          Thursday: { title:'Explosive Power', sub:'Plyometrics & sprints.', focus:'Power: Every rep maximum intent, long rest (3 min) between sets. Stop when speed drops.', exercises:[
+            {n:'Box jumps',s:5,r:'5',cue:'Land softly, step down (no rebound), reset each rep.'},
+            {n:'Jump squats',s:4,r:'10',cue:'Max height, land with bent knees, immediate next jump.'},
+            {n:'Broad jumps',s:4,r:'8',cue:'Two-foot takeoff, land and stick, reset.'},
+            {n:'Explosive push-ups',s:5,r:'8',cue:'Push so hard hands leave floor, land with soft elbows.'},
+            {n:'Clapping push-ups',s:4,r:'6',cue:'Same as explosive but clap mid-air.'}
+          ]},
+          Friday: { title:'Upper Hypertrophy', sub:'Volume day.', focus:'Hypertrophy: 60-90s rest, slow negatives (2-3s), feel the burn.', exercises:[
+            {n:'Pull-ups',s:4,r:'8',cue:'3s lowering, explosive pull, full stretch at bottom.'},
+            {n:'Chin-ups',s:4,r:'8',cue:'Palms facing you, squeeze biceps at top, slow negative.'},
+            {n:'Dips',s:4,r:'12',cue:'Deep stretch, controlled tempo, constant tension.'},
+            {n:'Push-ups',s:4,r:'20',cue:'Tempo: 2s down, 1s up, constant tension, don't lock out.'},
+            {n:'Pike push-ups',s:4,r:'12',cue:'Slow descent, pause at bottom, press back with control.'}
+          ]},
+          Saturday: { title:'Legs + Stamina', sub:'Run & leg circuit.', focus:'Stamina: Moderate intensity, limited rest, keep moving.', notes:['20 min run','Squats 4×25','Jump lunges 3×15'] },
+          Sunday: { title:'Recovery', sub:'Mobility & light movement.', focus:'Recovery: No intensity. Walk, stretch, foam roll. Sleep 8+ hours.' }
         }},
         2: { phase:'Build', days: {
-          Monday: { title:'Upper Strength', sub:'Load increases.', exercises:[{n:'Pull-ups',s:5,r:'8'},{n:'Push-ups',s:5,r:'25'},{n:'Dips',s:5,r:'15'},{n:'Pike push-ups',s:4,r:'15'},{n:'Australian rows',s:4,r:'15'}] },
-          Tuesday: { title:'Lower Strength', sub:'Add backpack weight.', exercises:[{n:'Squats (backpack)',s:5,r:'30'},{n:'Bulgarian split squats',s:4,r:'15/leg'},{n:'Walking lunges',s:4,r:'25/leg'},{n:'Glute bridges',s:4,r:'25'},{n:'Calf raises',s:4,r:'30'}] },
-          Wednesday: { title:'Conditioning', sub:'Long run or intervals.', notes:['Option A: 45–60 min run','Option B: 10×100 m sprints'] },
-          Thursday: { title:'Explosive Power', sub:'More volume.', exercises:[{n:'Box jumps',s:5,r:'8'},{n:'Jump squats',s:4,r:'12'},{n:'Broad jumps',s:4,r:'10'},{n:'Explosive push-ups',s:5,r:'10'},{n:'Sprint 10×50 m'}] },
-          Friday: { title:'Weighted Upper', sub:'Backpack loaded.', exercises:[{n:'Weighted pull-ups',s:4,r:'8'},{n:'Weighted dips',s:4,r:'12'},{n:'Push-ups',s:4,r:'25'},{n:'Pike push-ups',s:4,r:'15'},{n:'Chin-ups',s:4,r:'10'}] },
-          Saturday: { title:'Legs + Stamina', sub:'Increase distance.', notes:['25 min run','Squats (backpack) 4×30','Jump lunges 3×15'] },
-          Sunday: { title:'Recovery', sub:'Full rest or 30 min walk.', notes:['Walk','Stretch','Foam rolling'] }
+          Monday: { title:'Upper Strength', sub:'Load increases.', focus:'Strength: Add weight (backpack), 3 min rest, perfect form.', exercises:[
+            {n:'Pull-ups',s:5,r:'8',cue:'Weighted if possible, otherwise explosive, control negative.'},
+            {n:'Push-ups',s:5,r:'25',cue:'Elevate feet for harder variation, keep tempo controlled.'},
+            {n:'Dips',s:5,r:'15',cue:'Add weight via backpack, full depth, no shoulder pain.'},
+            {n:'Pike push-ups',s:4,r:'15',cue:'Feet higher for more load, lower until head touches.'},
+            {n:'Australian rows',s:4,r:'15',cue:'Elevate feet to increase difficulty, pull with back.'}
+          ]},
+          Tuesday: { title:'Lower Strength', sub:'Add backpack weight.', focus:'Strength: Go heavier, but maintain depth. Rest 3 min.', exercises:[
+            {n:'Squats (backpack)',s:5,r:'30',cue:'Weight in backpack, chest tall, go deep, explosive up.'},
+            {n:'Bulgarian split squats',s:4,r:'15/leg',cue:'Hold weight if possible, slow descent, drive up.'},
+            {n:'Walking lunges',s:4,r:'25/leg',cue:'Add weight, long steps, upright posture.'},
+            {n:'Glute bridges',s:4,r:'25',cue:'Single-leg variation if too easy, hold 2s at top.'},
+            {n:'Calf raises',s:4,r:'30',cue:'Single leg or weighted, full stretch + peak contraction.'}
+          ]},
+          Wednesday: { title:'Conditioning', sub:'Long run or intervals.', focus:'Endurance: Keep heart rate elevated, steady effort.', notes:['Option A: 45–60 min run','Option B: 10×100 m sprints'] },
+          Thursday: { title:'Explosive Power', sub:'More volume.', focus:'Power: Fast & explosive, full rest (3 min), quality over quantity.', exercises:[
+            {n:'Box jumps',s:5,r:'8',cue:'Increase box height if possible, land softly.'},
+            {n:'Jump squats',s:4,r:'12',cue:'Max intent, minimal ground contact time.'},
+            {n:'Broad jumps',s:4,r:'10',cue:'Measure distance, try to beat previous best.'},
+            {n:'Explosive push-ups',s:5,r:'10',cue:'Aim for height, catch yourself softly.'},
+            {n:'Sprint 10×50 m',s:1,r:'10',cue:'Full recovery between sprints (walk back).'}
+          ]},
+          Friday: { title:'Weighted Upper', sub:'Backpack loaded.', focus:'Hypertrophy: Slow negatives, controlled reps, 60-90s rest.', exercises:[
+            {n:'Weighted pull-ups',s:4,r:'8',cue:'Add small weight, full ROM, no kipping.'},
+            {n:'Weighted dips',s:4,r:'12',cue:'Control depth, avoid shoulder discomfort.'},
+            {n:'Push-ups',s:4,r:'25',cue:'Weighted vest or feet elevated.'},
+            {n:'Pike push-ups',s:4,r:'15',cue:'Feet on chair, head to floor, slow negative.'},
+            {n:'Chin-ups',s:4,r:'10',cue:'Weighted, squeeze biceps, 3s negative.'}
+          ]},
+          Saturday: { title:'Legs + Stamina', sub:'Increase distance.', focus:'Stamina: Long run or higher volume circuit.', notes:['25 min run','Squats (backpack) 4×30','Jump lunges 3×15'] },
+          Sunday: { title:'Recovery', sub:'Full rest or 30 min walk.', focus:'Recovery: Active rest only.' }
         }},
         3: { phase:'Peak', days: {
-          Monday: { title:'Advanced Upper', sub:'Elite calisthenics.', exercises:[{n:'Weighted pull-ups',s:5,r:'5'},{n:'Weighted dips',s:5,r:'8'},{n:'Archer push-ups',s:4,r:'10/side'},{n:'Pseudo planche push-ups',s:4,r:'8'}], notes:['Skill: Handstand practice 10 min'] },
-          Tuesday: { title:'Advanced Lower', sub:'Unilateral strength.', exercises:[{n:'Pistol squat progression',s:4,r:'6-8/leg'},{n:'Jump squats (backpack)',s:4,r:'12'},{n:'Hill sprints',s:6,r:'40 m'},{n:'Broad jumps',s:4,r:'10'}] },
-          Wednesday: { title:'Conditioning Finisher', sub:'5 rounds for time.', notes:['5 rounds: 10 pull-ups, 20 push-ups, 30 squats, 200 m run'] },
-          Thursday: { title:'Power & Skills', sub:'Handstand + explosive.', exercises:[{n:'Handstand practice',s:'10 min'},{n:'Explosive push-ups',s:4,r:'12'},{n:'Box jumps',s:4,r:'10'},{n:'Clapping pull-ups (if able)',s:3,r:'5'}] },
-          Friday: { title:'Max Effort Upper', sub:'All sets to near-failure.', exercises:[{n:'Pull-ups',s:4,r:'MAX'},{n:'Dips',s:4,r:'MAX'},{n:'Push-ups',s:4,r:'MAX'},{n:'Chin-ups',s:3,r:'MAX'}] },
-          Saturday: { title:'Legs & Conditioning', sub:'Long run or intense circuit.', notes:['Option A: 5-10 km run','Option B: 4 rounds: 30 squats, 20 jump lunges, 200 m run'] },
-          Sunday: { title:'Recovery', sub:'Rest is when you grow.', notes:['Walk','Stretch','Mental reset'] }
+          Monday: { title:'Advanced Upper', sub:'Elite calisthenics.', focus:'Strength: Near-max effort, 3-5 min rest, perfect technique.', exercises:[
+            {n:'Weighted pull-ups',s:5,r:'5',cue:'Heaviest possible with good form, full ROM.'},
+            {n:'Weighted dips',s:5,r:'8',cue:'Maximum load, control the negative.'},
+            {n:'Archer push-ups',s:4,r:'10/side',cue:'One arm straight, bend other elbow, shift weight.'},
+            {n:'Pseudo planche push-ups',s:4,r:'8',cue:'Lean forward, keep protraction, control descent.'}
+          ]},
+          Tuesday: { title:'Advanced Lower', sub:'Unilateral strength.', focus:'Strength: Single-leg focus, heavy if possible.', exercises:[
+            {n:'Pistol squat progression',s:4,r:'6-8/leg',cue:'Assisted or full, control descent, no rounding.'},
+            {n:'Jump squats (backpack)',s:4,r:'12',cue:'Max height with weight, land softly.'},
+            {n:'Hill sprints',s:6,r:'40 m',cue:'Max effort uphill, walk down for recovery.'},
+            {n:'Broad jumps',s:4,r:'10',cue:'Stick landing, measure progress.'}
+          ]},
+          Wednesday: { title:'Conditioning Finisher', sub:'5 rounds for time.', focus:'Endurance: Push through fatigue, minimal rest between rounds.' },
+          Thursday: { title:'Power & Skills', sub:'Handstand + explosive.', focus:'Power: Explosive quality, long rests, skill practice.', exercises:[
+            {n:'Handstand practice',s:'10 min',cue:'Against wall or free, focus on alignment.'},
+            {n:'Explosive push-ups',s:4,r:'12',cue:'Clapping or depth, maximum height.'},
+            {n:'Box jumps',s:4,r:'10',cue:'Increase height, step down each rep.'},
+            {n:'Clapping pull-ups (if able)',s:3,r:'5',cue:'Explosive pull, release bar, catch and lower.'}
+          ]},
+          Friday: { title:'Max Effort Upper', sub:'All sets to near-failure.', focus:'Hypertrophy + Intensity: Go close to failure, 60s rest.', exercises:[
+            {n:'Pull-ups',s:4,r:'MAX',cue:'As many clean reps as possible, last set to failure.'},
+            {n:'Dips',s:4,r:'MAX',cue:'Full depth, push to limit.'},
+            {n:'Push-ups',s:4,r:'MAX',cue:'Constant tension, no rest at top.'},
+            {n:'Chin-ups',s:3,r:'MAX',cue:'Squeeze at top, controlled negative.'}
+          ]},
+          Saturday: { title:'Legs & Conditioning', sub:'Long run or intense circuit.', focus:'Stamina: Keep moving, minimal rest, high volume.' },
+          Sunday: { title:'Recovery', sub:'Rest is when you grow.', focus:'Recovery: Sleep, hydration, light mobility.' }
         }}
       },
 
       gym: {
         label: 'Gym',
         1: { phase:'Foundation', days: {
-          Monday: { title:'Upper Strength', sub:'Heavy compounds.', exercises:[{n:'Bench Press',s:5,r:'5'},{n:'Weighted Pull-ups',s:5,r:'5'},{n:'Overhead Press',s:4,r:'5'},{n:'Barbell Row',s:4,r:'6'},{n:'Face Pulls',s:3,r:'15'},{n:'Hanging Leg Raises',s:3,r:'15'}], notes:['Farmer’s Carry 4×40 m'] },
-          Tuesday: { title:'Lower Strength', sub:'Squat & hinge.', exercises:[{n:'Back Squat',s:5,r:'5'},{n:'Romanian Deadlift',s:4,r:'6'},{n:'Bulgarian Split Squat',s:3,r:'8'},{n:'Standing Calf Raises',s:4,r:'15'},{n:'Ab Wheel',s:3,r:'12'}] },
-          Wednesday: { title:'Conditioning', sub:'Zone 2 run + circuits.', notes:['Run 30–45 min','4 rounds: Battle Rope 30s, Sled Push 20m, Burpees ×10, RowErg 250m'] },
-          Thursday: { title:'Power Day', sub:'Olympic lifts & plyos.', exercises:[{n:'Power Clean',s:5,r:'3'},{n:'Box Jump',s:5,r:'5'},{n:'Broad Jump',s:4,r:'5'},{n:'Med Ball Chest Throw',s:4,r:'8'},{n:'Plyometric Push-ups',s:4,r:'8'}], notes:['Sprints: 6–10 × 50 m'] },
-          Friday: { title:'Hypertrophy (Upper)', sub:'Volume for arms & shoulders.', exercises:[{n:'Incline Dumbbell Press',s:4,r:'10'},{n:'Lat Pulldown',s:4,r:'10'},{n:'Dumbbell Lateral Raise',s:4,r:'15'},{n:'Barbell Curl',s:3,r:'12'},{n:'Triceps Pushdown',s:3,r:'12'},{n:'Push-ups (to near failure)',s:1,r:'MAX'}] },
-          Saturday: { title:'Hypertrophy (Lower)', sub:'Leg volume.', exercises:[{n:'Front Squat',s:4,r:'10'},{n:'Leg Press',s:4,r:'12'},{n:'Walking Lunges',s:3,r:'20'},{n:'Leg Curl',s:3,r:'12'},{n:'Leg Extension',s:3,r:'15'},{n:'Standing Calf Raise',s:4,r:'20'}], notes:['20 min incline treadmill walk'] },
-          Sunday: { title:'Recovery', sub:'Mobility & rest.', notes:['Walk','Stretch','Foam rolling'] }
+          Monday: { title:'Upper Strength', sub:'Heavy compounds.', focus:'Strength: 3-4 min rest, brace core, controlled reps.', exercises:[
+            {n:'Bench Press',s:5,r:'5',cue:'Arch slightly, feet planted, touch chest, press explosively.'},
+            {n:'Weighted Pull-ups',s:5,r:'5',cue:'Dead hang, pull explosively, lower slowly.'},
+            {n:'Overhead Press',s:4,r:'5',cue:'Bar from front rack, press up, lock out, avoid leaning back.'},
+            {n:'Barbell Row',s:4,r:'6',cue:'Hinge at hips, pull to lower chest, squeeze shoulder blades.'},
+            {n:'Face Pulls',s:3,r:'15',cue:'Rope to forehead, external rotate, hold 1s.'},
+            {n:'Hanging Leg Raises',s:3,r:'15',cue:'No swing, lift legs to 90°, controlled lowering.'}
+          ], notes:['Farmer’s Carry 4×40 m (heavy dumbbells, walk tall)'] },
+          Tuesday: { title:'Lower Strength', sub:'Squat & hinge.', focus:'Strength: Deep squats, hip hinge, 3 min rest.', exercises:[
+            {n:'Back Squat',s:5,r:'5',cue:'Bar on traps, chest up, break parallel, drive hips.'},
+            {n:'Romanian Deadlift',s:4,r:'6',cue:'Soft knees, hinge back, bar stays close to legs.'},
+            {n:'Bulgarian Split Squat',s:3,r:'8',cue:'Dumbbells optional, upright torso, front knee stable.'},
+            {n:'Standing Calf Raises',s:4,r:'15',cue:'Full stretch, explosive up, hold peak.'},
+            {n:'Ab Wheel',s:3,r:'12',cue:'Kneeling, roll out slowly, engage core, return with control.'}
+          ]},
+          Wednesday: { title:'Conditioning', sub:'Zone 2 run + circuits.', focus:'Endurance: Steady run, then high-intensity circuit with minimal rest.', notes:['Run 30–45 min','4 rounds: Battle Rope 30s, Sled Push 20m, Burpees ×10, RowErg 250m'] },
+          Thursday: { title:'Power Day', sub:'Olympic lifts & plyos.', focus:'Power: Max speed, long rest (3 min), technique first.', exercises:[
+            {n:'Power Clean',s:5,r:'3',cue:'Explosive triple extension, catch in quarter squat, reset each rep.'},
+            {n:'Box Jump',s:5,r:'5',cue:'Soft landing, step down, no rebound.'},
+            {n:'Broad Jump',s:4,r:'5',cue:'Stick the landing, measure distance.'},
+            {n:'Med Ball Chest Throw',s:4,r:'8',cue:'Explosive push, release at full extension.'},
+            {n:'Plyometric Push-ups',s:4,r:'8',cue:'Push so hands leave floor, land softly.'}
+          ], notes:['Sprints: 6–10 × 50 m (full recovery)'] },
+          Friday: { title:'Hypertrophy (Upper)', sub:'Volume for arms & shoulders.', focus:'Hypertrophy: 60-90s rest, slow negatives, focus on pump.', exercises:[
+            {n:'Incline Dumbbell Press',s:4,r:'10',cue:'Bench at 30-45°, full ROM, squeeze chest.'},
+            {n:'Lat Pulldown',s:4,r:'10',cue:'Wide grip, pull to chest, control return.'},
+            {n:'Dumbbell Lateral Raise',s:4,r:'15',cue:'Light weight, raise to shoulder height, hold 1s.'},
+            {n:'Barbell Curl',s:3,r:'12',cue:'Strict, no swing, squeeze at top, 3s negative.'},
+            {n:'Triceps Pushdown',s:3,r:'12',cue:'Elbows pinned, full extension, slow return.'},
+            {n:'Push-ups (to near failure)',s:1,r:'MAX',cue:'Constant tension, last reps to failure.'}
+          ]},
+          Saturday: { title:'Hypertrophy (Lower)', sub:'Leg volume.', focus:'Hypertrophy: Moderate weight, high reps, controlled tempo.', exercises:[
+            {n:'Front Squat',s:4,r:'10',cue:'Bar on front delts, elbows high, upright torso.'},
+            {n:'Leg Press',s:4,r:'12',cue:'Feet high and wide, deep bend, no lockout.'},
+            {n:'Walking Lunges',s:3,r:'20',cue:'Dumbbells optional, long stride, upright.'},
+            {n:'Leg Curl',s:3,r:'12',cue:'Control negative, squeeze hamstrings.'},
+            {n:'Leg Extension',s:3,r:'15',cue:'Pause at top, slow negative.'},
+            {n:'Standing Calf Raise',s:4,r:'20',cue:'Full stretch, explosive up, hold peak.'}
+          ], notes:['20 min incline treadmill walk'] },
+          Sunday: { title:'Recovery', sub:'Mobility & rest.', focus:'Recovery: Walk, stretch, foam roll, hydrate.' }
         }},
         2: { phase:'Strength', days: {
-          Monday: { title:'Upper Strength', sub:'Heavier, lower reps.', exercises:[{n:'Bench Press',s:5,r:'4'},{n:'Weighted Pull-ups',s:5,r:'4'},{n:'Overhead Press',s:4,r:'4'},{n:'Barbell Row',s:4,r:'5'},{n:'Face Pulls',s:3,r:'12'},{n:'Hanging Leg Raises',s:3,r:'12'}] },
-          Tuesday: { title:'Lower Strength', sub:'Increase load.', exercises:[{n:'Back Squat',s:5,r:'4'},{n:'Romanian Deadlift',s:4,r:'5'},{n:'Bulgarian Split Squat',s:3,r:'6'},{n:'Standing Calf Raises',s:4,r:'12'},{n:'Ab Wheel',s:3,r:'10'}] },
-          Wednesday: { title:'Conditioning', sub:'Longer intervals.', notes:['Run 40–50 min','4 rounds: Sled Push 30m, Battle Rope 40s, Box Jumps ×10, RowErg 300m'] },
-          Thursday: { title:'Power Day', sub:'Explosive focus.', exercises:[{n:'Power Clean',s:5,r:'3'},{n:'Box Jump',s:5,r:'6'},{n:'Broad Jump',s:4,r:'6'},{n:'Med Ball Chest Throw',s:4,r:'10'},{n:'Clapping Push-ups',s:4,r:'8'}], notes:['Sprints: 8–12 × 60 m'] },
-          Friday: { title:'Hypertrophy (Upper)', sub:'Still volume, moderate weight.', exercises:[{n:'Incline Dumbbell Press',s:4,r:'8-10'},{n:'Lat Pulldown',s:4,r:'8-10'},{n:'Dumbbell Lateral Raise',s:4,r:'12'},{n:'Barbell Curl',s:3,r:'10'},{n:'Triceps Pushdown',s:3,r:'10'},{n:'Push-ups (to near failure)',s:1,r:'MAX'}] },
-          Saturday: { title:'Hypertrophy (Lower)', sub:'Leg volume with heavier accessories.', exercises:[{n:'Front Squat',s:4,r:'8'},{n:'Leg Press',s:4,r:'10'},{n:'Walking Lunges',s:3,r:'16'},{n:'Leg Curl',s:3,r:'10'},{n:'Leg Extension',s:3,r:'12'},{n:'Standing Calf Raise',s:4,r:'18'}], notes:['25 min incline walk'] },
-          Sunday: { title:'Recovery', sub:'Mobility & rest.', notes:['Walk','Stretch','Foam rolling'] }
+          Monday: { title:'Upper Strength', sub:'Heavier, lower reps.', focus:'Strength: 4-5 min rest, heavy loads, perfect form.', exercises:[
+            {n:'Bench Press',s:5,r:'4',cue:'Leg drive, tight back, touch chest, explosive press.'},
+            {n:'Weighted Pull-ups',s:5,r:'4',cue:'Add weight, full ROM, controlled negative.'},
+            {n:'Overhead Press',s:4,r:'4',cue:'Strict, no leg drive, lock out overhead.'},
+            {n:'Barbell Row',s:4,r:'5',cue:'Heavy, controlled, squeeze at top.'},
+            {n:'Face Pulls',s:3,r:'12',cue:'Light, high reps, external rotation focus.'},
+            {n:'Hanging Leg Raises',s:3,r:'12',cue:'No swing, controlled.'}
+          ]},
+          Tuesday: { title:'Lower Strength', sub:'Increase load.', focus:'Strength: Heavier squats & hinges, 4 min rest.', exercises:[
+            {n:'Back Squat',s:5,r:'4',cue:'Brace hard, depth, explosive up.'},
+            {n:'Romanian Deadlift',s:4,r:'5',cue:'Bar close to shins, hinge deep, feel hamstrings.'},
+            {n:'Bulgarian Split Squat',s:3,r:'6',cue:'Heavy dumbbells, upright, front knee stable.'},
+            {n:'Standing Calf Raises',s:4,r:'12',cue:'Heavy, full ROM.'},
+            {n:'Ab Wheel',s:3,r:'10',cue:'Roll out further, maintain hollow body.'}
+          ]},
+          Wednesday: { title:'Conditioning', sub:'Longer intervals.', focus:'Endurance: Push pace, active recovery between sets.', notes:['Run 40–50 min','4 rounds: Sled Push 30m, Battle Rope 40s, Box Jumps ×10, RowErg 300m'] },
+          Thursday: { title:'Power Day', sub:'Explosive focus.', focus:'Power: Max intent, 3 min rest, reduce reps if speed drops.', exercises:[
+            {n:'Power Clean',s:5,r:'3',cue:'Explosive, catch high, reset.'},
+            {n:'Box Jump',s:5,r:'6',cue:'Higher box, soft landings.'},
+            {n:'Broad Jump',s:4,r:'6',cue:'Stick landing, record distance.'},
+            {n:'Med Ball Chest Throw',s:4,r:'10',cue:'Heavier ball, explosive push.'},
+            {n:'Clapping Push-ups',s:4,r:'8',cue:'Aim for height, quick hands.'}
+          ], notes:['Sprints: 8–12 × 60 m'] },
+          Friday: { title:'Hypertrophy (Upper)', sub:'Still volume, moderate weight.', focus:'Hypertrophy: 60s rest, slow negatives, pump.', exercises:[
+            {n:'Incline Dumbbell Press',s:4,r:'8-10',cue:'Control descent, squeeze chest.'},
+            {n:'Lat Pulldown',s:4,r:'8-10',cue:'Wide grip, pull to chest, hold 1s.'},
+            {n:'Dumbbell Lateral Raise',s:4,r:'12',cue:'Light, hold peak.'},
+            {n:'Barbell Curl',s:3,r:'10',cue:'Strict, slow negative.'},
+            {n:'Triceps Pushdown',s:3,r:'10',cue:'Elbows locked, full extension.'},
+            {n:'Push-ups (to near failure)',s:1,r:'MAX',cue:'Constant tension.'}
+          ]},
+          Saturday: { title:'Hypertrophy (Lower)', sub:'Leg volume with heavier accessories.', focus:'Hypertrophy: Moderate weight, high reps, 60-90s rest.', exercises:[
+            {n:'Front Squat',s:4,r:'8',cue:'Deep, upright, control.'},
+            {n:'Leg Press',s:4,r:'10',cue:'High feet, deep bend, no lock.'},
+            {n:'Walking Lunges',s:3,r:'16',cue:'Heavy dumbbells, long stride.'},
+            {n:'Leg Curl',s:3,r:'10',cue:'Slow negative, squeeze.'},
+            {n:'Leg Extension',s:3,r:'12',cue:'Pause at top, slow down.'},
+            {n:'Standing Calf Raise',s:4,r:'18',cue:'Heavy, full stretch, peak contraction.'}
+          ], notes:['25 min incline walk'] },
+          Sunday: { title:'Recovery', sub:'Mobility & rest.', focus:'Recovery: Active recovery, hydration, sleep.' }
         }},
         3: { phase:'Peak', days: {
-          Monday: { title:'Upper Strength', sub:'Max strength.', exercises:[{n:'Bench Press',s:5,r:'3'},{n:'Weighted Pull-ups',s:5,r:'3'},{n:'Overhead Press',s:4,r:'3'},{n:'Barbell Row',s:4,r:'3'},{n:'Face Pulls',s:3,r:'10'},{n:'Hanging Leg Raises',s:3,r:'10'}] },
-          Tuesday: { title:'Lower Strength', sub:'Peak force.', exercises:[{n:'Back Squat',s:5,r:'3'},{n:'Romanian Deadlift',s:4,r:'3'},{n:'Bulgarian Split Squat',s:3,r:'5'},{n:'Standing Calf Raises',s:4,r:'10'},{n:'Ab Wheel',s:3,r:'8'}] },
-          Wednesday: { title:'Conditioning', sub:'High intensity intervals.', notes:['Run 35–45 min','5 rounds: Sled Push 20m, Battle Rope 30s, Burpees ×12, RowErg 200m'] },
-          Thursday: { title:'Power Day', sub:'Peak power.', exercises:[{n:'Power Clean',s:5,r:'2'},{n:'Box Jump',s:5,r:'5'},{n:'Broad Jump',s:4,r:'4'},{n:'Med Ball Chest Throw',s:4,r:'6'},{n:'Depth Push-ups',s:4,r:'6'}], notes:['Sprints: 6–8 × 40 m (max effort)'] },
-          Friday: { title:'Hypertrophy (Upper)', sub:'Maintenance volume.', exercises:[{n:'Incline Dumbbell Press',s:4,r:'10'},{n:'Lat Pulldown',s:4,r:'10'},{n:'Dumbbell Lateral Raise',s:4,r:'15'},{n:'Barbell Curl',s:3,r:'12'},{n:'Triceps Pushdown',s:3,r:'12'},{n:'Push-ups (to near failure)',s:1,r:'MAX'}] },
-          Saturday: { title:'Hypertrophy (Lower)', sub:'Maintenance leg volume.', exercises:[{n:'Front Squat',s:4,r:'10'},{n:'Leg Press',s:4,r:'12'},{n:'Walking Lunges',s:3,r:'20'},{n:'Leg Curl',s:3,r:'12'},{n:'Leg Extension',s:3,r:'15'},{n:'Standing Calf Raise',s:4,r:'20'}], notes:['20 min incline walk'] },
-          Sunday: { title:'Recovery', sub:'Mobility & rest.', notes:['Walk','Stretch','Foam rolling'] }
+          Monday: { title:'Upper Strength', sub:'Max strength.', focus:'Strength: 5 min rest, near-max weights, spotter if needed.', exercises:[
+            {n:'Bench Press',s:5,r:'3',cue:'Heavy, tight setup, leg drive, controlled.'},
+            {n:'Weighted Pull-ups',s:5,r:'3',cue:'Maximum weight, full ROM, no kip.'},
+            {n:'Overhead Press',s:4,r:'3',cue:'Strict, lock out, avoid arching.'},
+            {n:'Barbell Row',s:4,r:'3',cue:'Heavy, controlled, squeeze.'},
+            {n:'Face Pulls',s:3,r:'10',cue:'Light, high reps, rotation.'},
+            {n:'Hanging Leg Raises',s:3,r:'10',cue:'Slow, controlled, no swing.'}
+          ]},
+          Tuesday: { title:'Lower Strength', sub:'Peak force.', focus:'Strength: Heavy singles/doubles if comfortable, 5 min rest.', exercises:[
+            {n:'Back Squat',s:5,r:'3',cue:'Max depth, brace, explosive.'},
+            {n:'Romanian Deadlift',s:4,r:'3',cue:'Heavy, perfect hinge.'},
+            {n:'Bulgarian Split Squat',s:3,r:'5',cue:'Heavy, stable, deep.'},
+            {n:'Standing Calf Raises',s:4,r:'10',cue:'Very heavy, full ROM.'},
+            {n:'Ab Wheel',s:3,r:'8',cue:'Full extension if possible.'}
+          ]},
+          Wednesday: { title:'Conditioning', sub:'High intensity intervals.', focus:'Endurance: Max effort intervals, walk-back recovery.', notes:['Run 35–45 min','5 rounds: Sled Push 20m, Battle Rope 30s, Burpees ×12, RowErg 200m'] },
+          Thursday: { title:'Power Day', sub:'Peak power.', focus:'Power: Highest quality, stop when speed drops, 3-5 min rest.', exercises:[
+            {n:'Power Clean',s:5,r:'2',cue:'Max weight, explosive, perfect form.'},
+            {n:'Box Jump',s:5,r:'5',cue:'Highest box, land and stick.'},
+            {n:'Broad Jump',s:4,r:'4',cue:'Max distance, stick landing.'},
+            {n:'Med Ball Chest Throw',s:4,r:'6',cue:'Heavier ball, max velocity.'},
+            {n:'Depth Push-ups',s:4,r:'6',cue:'Drop from box, explode up, land softly.'}
+          ], notes:['Sprints: 6–8 × 40 m (max effort)'] },
+          Friday: { title:'Hypertrophy (Upper)', sub:'Maintenance volume.', focus:'Hypertrophy: Moderate weight, keep volume, 60s rest.', exercises:[
+            {n:'Incline Dumbbell Press',s:4,r:'10',cue:'Full ROM, squeeze.'},
+            {n:'Lat Pulldown',s:4,r:'10',cue:'Wide grip, control.'},
+            {n:'Dumbbell Lateral Raise',s:4,r:'15',cue:'Light, hold peak.'},
+            {n:'Barbell Curl',s:3,r:'12',cue:'Strict, slow negative.'},
+            {n:'Triceps Pushdown',s:3,r:'12',cue:'Full extension, control.'},
+            {n:'Push-ups (to near failure)',s:1,r:'MAX',cue:'Constant tension, last reps to failure.'}
+          ]},
+          Saturday: { title:'Hypertrophy (Lower)', sub:'Maintenance leg volume.', focus:'Hypertrophy: Moderate weight, high reps.', exercises:[
+            {n:'Front Squat',s:4,r:'10',cue:'Deep, controlled.'},
+            {n:'Leg Press',s:4,r:'12',cue:'Feet high, no lock.'},
+            {n:'Walking Lunges',s:3,r:'20',cue:'Dumbbells, long stride.'},
+            {n:'Leg Curl',s:3,r:'12',cue:'Slow negative, squeeze.'},
+            {n:'Leg Extension',s:3,r:'15',cue:'Pause at top.'},
+            {n:'Standing Calf Raise',s:4,r:'20',cue:'Heavy, full stretch, peak.'}
+          ], notes:['20 min incline walk'] },
+          Sunday: { title:'Recovery', sub:'Mobility & rest.', focus:'Recovery: Walk, stretch, hydrate, sleep 8+ hours.' }
         }}
       }
     };
@@ -401,11 +577,7 @@
       tempSession: null
     };
 
-    function getPhaseNumber() {
-      if (state.week <= 4) return 1;
-      if (state.week <= 8) return 2;
-      return 3;
-    }
+    function getPhaseNumber() { return state.week <= 4 ? 1 : state.week <= 8 ? 2 : 3; }
     function getPhaseName() { return PROGRAMS[state.program][getPhaseNumber()].phase; }
     function getCurrentDayName() {
       const todayIdx = (new Date().getDay() + 6) % 7;
@@ -424,25 +596,21 @@
     }
     async function saveState() {
       await put('settings', { id:'appState', value: {
-        program: state.program,
-        week: state.week,
-        dayOffset: state.dayOffset,
-        settings: state.settings,
-        completedWorkouts: state.completedWorkouts
+        program: state.program, week: state.week, dayOffset: state.dayOffset,
+        settings: state.settings, completedWorkouts: state.completedWorkouts
       }});
     }
 
     function buildSessionDraft() {
       const w = getTodayWorkout();
       const exs = (w?.exercises || []).map(ex => ({
-        name: ex.n, targetSets: ex.s||'', targetReps: ex.r||'',
+        name: ex.n, targetSets: ex.s||'', targetReps: ex.r||'', cue: ex.cue||'',
         logs: Array.from({length: Number(ex.s)||1}, () => ({reps:'',weight:'',rest:'',notes:''}))
       }));
       return {
         id: uid('session'), date: todayStr(), week: state.week, day: getCurrentDayName(),
         phase: getPhaseName(), title: w?.title || 'Session', exercises: exs,
-        energy:'', soreness:'', notes:'', completed:false,
-        program: state.program
+        energy:'', soreness:'', notes:'', completed:false, program: state.program
       };
     }
 
@@ -466,10 +634,21 @@
       document.getElementById('dayNameDisplay').textContent = `Week ${state.week} · ${getCurrentDayName()}`;
       document.getElementById('todayTitle').textContent = w?.title || 'Session';
       document.getElementById('todaySubtitle').textContent = w?.sub || '';
+      document.getElementById('dayFocus').textContent = w?.focus ? `🎯 ${w.focus}` : '';
+
       let html = '';
       if (w?.exercises) {
         html += '<div class="list">';
-        w.exercises.forEach(ex => html += `<div class="log-row"><div class="exercise-name">${escapeHtml(ex.n)}</div><div class="exercise-meta">${ex.s} sets × ${ex.r} reps</div></div>`);
+        w.exercises.forEach((ex,i) => {
+          html += `<div class="log-row">
+            <div style="flex:1">
+              <div class="exercise-name">${escapeHtml(ex.n)}</div>
+              <div class="exercise-meta">${ex.s} sets × ${ex.r} reps</div>
+              <div class="exercise-cue" id="cue-${i}">💡 ${escapeHtml(ex.cue||'Focus on form and controlled movement.')}</div>
+            </div>
+            <button class="cue-toggle" onclick="document.getElementById('cue-${i}').classList.toggle('open')">?</button>
+          </div>`;
+        });
         html += '</div>';
       }
       if (w?.notes) w.notes.forEach(n => html += `<div class="log-row"><div class="muted">${escapeHtml(n)}</div></div>`);
@@ -494,8 +673,12 @@
                 <div>
                   <div class="exercise-name">${escapeHtml(ex.name)}</div>
                   <div class="exercise-meta">Target: ${ex.targetSets} sets × ${ex.targetReps}</div>
+                  <div class="exercise-cue" id="log-cue-${ei}">💡 ${escapeHtml(ex.cue||'Focus on form and controlled movement.')}</div>
                 </div>
-                <button class="remove-exercise-btn chip" data-ei="${ei}">✕</button>
+                <div style="display:flex; gap:6px; align-items:center;">
+                  <button class="cue-toggle" onclick="document.getElementById('log-cue-${ei}').classList.toggle('open')">?</button>
+                  <button class="remove-exercise-btn chip" data-ei="${ei}">✕</button>
+                </div>
               </div>
               <div class="sets">
                 ${ex.logs.map((log,li) => `
@@ -544,7 +727,7 @@
       document.getElementById('addExerciseBtn').addEventListener('click', () => {
         const name = prompt('Exercise name:');
         if (name) {
-          state.tempSession.exercises.push({name, targetSets:'', targetReps:'', logs:[{reps:'',weight:'',rest:'',notes:''}]});
+          state.tempSession.exercises.push({name, targetSets:'', targetReps:'', cue:'', logs:[{reps:'',weight:'',rest:'',notes:''}]});
           renderSessionEditor();
         }
       });
@@ -645,51 +828,30 @@
       document.getElementById('goalWeightInput').value = state.settings.goalWeight;
     }
 
+    // Timer (unchanged)
     let timerInterval = null, timerEndTime = null, timerDisplayEl = null;
-
-    function requestNotificationPermission() {
-      if ('Notification' in window && Notification.permission === 'default') Notification.requestPermission();
-    }
-
+    function requestNotificationPermission() { if ('Notification' in window && Notification.permission === 'default') Notification.requestPermission(); }
     function startTimer(seconds, displayEl) {
-      stopTimer();
-      requestNotificationPermission();
-      timerDisplayEl = displayEl;
-      timerEndTime = Date.now() + seconds * 1000;
-      updateTimerDisplay();
-      timerInterval = setInterval(updateTimerDisplay, 200);
+      stopTimer(); requestNotificationPermission();
+      timerDisplayEl = displayEl; timerEndTime = Date.now() + seconds * 1000;
+      updateTimerDisplay(); timerInterval = setInterval(updateTimerDisplay, 200);
     }
-
     function updateTimerDisplay() {
       if (!timerEndTime || !timerDisplayEl) return;
       const remaining = Math.max(0, Math.ceil((timerEndTime - Date.now()) / 1000));
       const mins = Math.floor(remaining / 60), secs = remaining % 60;
       timerDisplayEl.textContent = `${String(mins).padStart(2,'0')}:${String(secs).padStart(2,'0')}`;
-      if (remaining <= 0) {
-        stopTimer();
-        if ('Notification' in window && Notification.permission === 'granted') new Notification('FORGE Timer', { body: 'Rest time is up!' });
-      }
+      if (remaining <= 0) { stopTimer(); if ('Notification' in window && Notification.permission === 'granted') new Notification('FORGE Timer', { body: 'Rest time is up!' }); }
     }
+    function stopTimer() { if (timerInterval) { clearInterval(timerInterval); timerInterval = null; } timerEndTime = null; if (timerDisplayEl) { timerDisplayEl.textContent = '00:00'; timerDisplayEl = null; } }
+    document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && timerEndTime) { updateTimerDisplay(); if (!timerInterval) timerInterval = setInterval(updateTimerDisplay, 200); } });
 
-    function stopTimer() {
-      if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
-      timerEndTime = null;
-      if (timerDisplayEl) { timerDisplayEl.textContent = '00:00'; timerDisplayEl = null; }
-    }
-
-    document.addEventListener('visibilitychange', () => {
-      if (document.visibilityState === 'visible' && timerEndTime) {
-        updateTimerDisplay();
-        if (!timerInterval) timerInterval = setInterval(updateTimerDisplay, 200);
-      }
-    });
-
+    // Actions (unchanged)
     async function addWater(amt) {
       const item = await get('notes','today-water');
       await put('notes', { id:'today-water', value: (item?.value||0)+amt });
       await renderToday();
     }
-
     async function saveSession() {
       if (!state.tempSession) return;
       state.tempSession.energy = document.getElementById('sessionEnergy').value;
@@ -699,60 +861,39 @@
       await put('sessions', state.tempSession);
       state.completedWorkouts.push({ id:state.tempSession.id, date:state.tempSession.date, day:state.tempSession.day, week:state.tempSession.week });
       state.tempSession = buildSessionDraft();
-      await saveState();
-      await renderAll();
+      await saveState(); await renderAll();
       document.getElementById('prBadge').style.display = 'block';
       setTimeout(() => document.getElementById('prBadge').style.display = 'none', 3000);
     }
-
     async function logWeight() {
       const input = document.getElementById('weightInput');
       const val = parseFloat(input.value);
       if (!val || val < 30 || val > 200) return;
       await put('weights', { id: uid('w'), date: todayStr(), value: val });
-      input.value = '';
-      await renderProgress();
+      input.value = ''; await renderProgress();
     }
-
     async function exportData() {
-      const data = {
-        settings: await getAll('settings'),
-        sessions: await getAll('sessions'),
-        weights: await getAll('weights'),
-        nutrition: await getAll('nutrition'),
-        notes: await getAll('notes'),
-        exportedAt: new Date().toISOString()
-      };
+      const data = { settings: await getAll('settings'), sessions: await getAll('sessions'), weights: await getAll('weights'), nutrition: await getAll('nutrition'), notes: await getAll('notes'), exportedAt: new Date().toISOString() };
       const blob = new Blob([JSON.stringify(data,null,2)], {type:'application/json'});
-      const a = document.createElement('a');
-      a.href = URL.createObjectURL(blob);
-      a.download = `forge-backup-${todayStr()}.json`;
-      a.click();
+      const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `forge-backup-${todayStr()}.json`; a.click();
     }
-
     async function importData(e) {
-      const file = e.target.files?.[0];
-      if (!file) return;
-      const text = await file.text();
-      const data = JSON.parse(text);
+      const file = e.target.files?.[0]; if (!file) return;
+      const text = await file.text(); const data = JSON.parse(text);
       for (const row of data.settings||[]) await put('settings', row);
       for (const row of data.sessions||[]) await put('sessions', row);
       for (const row of data.weights||[]) await put('weights', row);
       for (const row of data.nutrition||[]) await put('nutrition', row);
       for (const row of data.notes||[]) await put('notes', row);
-      await loadState();
-      await renderAll();
+      await loadState(); await renderAll();
     }
-
     async function saveSettings() {
       state.program = document.getElementById('programSelect').value;
       state.settings.startWeek = +document.getElementById('startWeekInput').value || 1;
       state.settings.goalWeight = +document.getElementById('goalWeightInput').value || 68;
       state.week = state.settings.startWeek;
-      await saveState();
-      await renderAll();
+      await saveState(); await renderAll();
     }
-
     function showPage(page) {
       document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.page === page));
       document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
@@ -764,7 +905,6 @@
     function bindAll() {
       log('Binding events...');
       document.querySelectorAll('.tab').forEach(btn => btn.addEventListener('click', () => showPage(btn.dataset.page)));
-
       document.getElementById('startWorkoutBtn').addEventListener('click', () => { state.tempSession = buildSessionDraft(); renderSessionEditor(); showPage('log'); });
       document.getElementById('quickCompleteBtn').addEventListener('click', async () => {
         const d = buildSessionDraft(); d.completed = true;
@@ -775,41 +915,27 @@
       document.getElementById('prevDayBtn').addEventListener('click', () => { state.dayOffset--; saveState(); renderAll(); });
       document.getElementById('nextDayBtn').addEventListener('click', () => { state.dayOffset++; saveState(); renderAll(); });
       document.getElementById('todayBtn').addEventListener('click', () => { state.dayOffset = 0; saveState(); renderAll(); });
-
       document.querySelectorAll('[data-water]').forEach(b => b.addEventListener('click', () => addWater(+b.dataset.water)));
-      document.getElementById('addCustomWaterBtn').addEventListener('click', () => {
-        const amt = +document.getElementById('customWater').value || 0;
-        if (amt) addWater(amt);
-      });
-
+      document.getElementById('addCustomWaterBtn').addEventListener('click', () => { const amt = +document.getElementById('customWater').value || 0; if (amt) addWater(amt); });
       const setupTimer = (displayId, customId, startId, stopId) => {
         const display = document.getElementById(displayId);
         document.querySelectorAll('[data-timer]').forEach(b => b.addEventListener('click', () => startTimer(+b.dataset.timer, display)));
-        document.getElementById(startId).addEventListener('click', () => {
-          const sec = +document.getElementById(customId).value || 0;
-          if (sec) startTimer(sec, display);
-        });
+        document.getElementById(startId).addEventListener('click', () => { const sec = +document.getElementById(customId).value || 0; if (sec) startTimer(sec, display); });
         document.getElementById(stopId).addEventListener('click', stopTimer);
       };
       setupTimer('timerDisplay', 'customTimerSec', 'startCustomTimerBtn', 'stopTimerBtn');
       setupTimer('timerDisplay2', 'customTimerSec2', 'startCustomTimerBtn2', 'stopTimerBtn2');
-
       document.getElementById('saveSessionBtn').addEventListener('click', saveSession);
       document.getElementById('logWeightBtn').addEventListener('click', logWeight);
       document.getElementById('exportBtn').addEventListener('click', exportData);
       document.getElementById('importInput').addEventListener('change', importData);
       document.getElementById('saveSettingsBtn').addEventListener('click', saveSettings);
-      document.getElementById('advanceWeekBtn').addEventListener('click', () => {
-        state.week++;
-        saveState();
-        renderAll();
-      });
-
+      document.getElementById('advanceWeekBtn').addEventListener('click', () => { state.week++; saveState(); renderAll(); });
       log('Events bound');
     }
 
     if ('serviceWorker' in navigator) {
-      const swCode = `const CACHE='forge-unending';self.addEventListener('install',e=>{e.waitUntil(caches.open(CACHE).then(c=>c.addAll(['./'])).then(()=>self.skipWaiting()))});self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(k=>Promise.all(k.map(k=>k!==CACHE?caches.delete(k):null))).then(()=>self.clients.claim()))});self.addEventListener('fetch',e=>{if(e.request.method!=='GET')return;e.respondWith(caches.match(e.request).then(c=>c||fetch(e.request).then(r=>{if(r.ok){const clone=r.clone();caches.open(CACHE).then(c=>c.put(e.request,clone));}return r;}).catch(()=>caches.match('./index.html'))))});`;
+      const swCode = `const CACHE='forge-cues';self.addEventListener('install',e=>{e.waitUntil(caches.open(CACHE).then(c=>c.addAll(['./'])).then(()=>self.skipWaiting()))});self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(k=>Promise.all(k.map(k=>k!==CACHE?caches.delete(k):null))).then(()=>self.clients.claim()))});self.addEventListener('fetch',e=>{if(e.request.method!=='GET')return;e.respondWith(caches.match(e.request).then(c=>c||fetch(e.request).then(r=>{if(r.ok){const clone=r.clone();caches.open(CACHE).then(c=>c.put(e.request,clone));}return r;}).catch(()=>caches.match('./index.html'))))});`;
       const blob = new Blob([swCode], {type:'application/javascript'});
       navigator.serviceWorker.register(URL.createObjectURL(blob)).catch(() => {});
     }
@@ -820,13 +946,8 @@
       await renderAll();
       bindAll();
       log('✅ App fully loaded');
-      setTimeout(() => {
-        const panel = document.getElementById('debugPanel');
-        if (panel) panel.style.display = 'none';
-      }, 3000);
-    })().catch(err => {
-      log('❌ Fatal error: ' + err.message);
-    });
+      setTimeout(() => { const panel = document.getElementById('debugPanel'); if (panel) panel.style.display = 'none'; }, 3000);
+    })().catch(err => { log('❌ Fatal error: ' + err.message); });
   </script>
 </body>
 </html>
